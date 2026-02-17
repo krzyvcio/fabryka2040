@@ -347,27 +347,134 @@ const schemas: Schema[] = [
   },
 ];
 
-const TRANSLATOR_MODEL = "mistral-7b-instruct-v0.2"; // albo bielik-7b-v0.1
-const REASONER_MODEL = "qed-nano";
-const REASONER_FALLBACKS = [
-  "qed-nano",
-  "bielik-7b-v0.1",
-  "magistral-small-2509",
-  "mistral-7b-instruct-v0.2",
-];
-const TRANSLATOR_FALLBACKS = [
-  "mistral-7b-instruct-v0.2",
-  "bielik-7b-v0.1",
-  "qwen2.5-0.5b-instruct",
-];
+const REASONER_MODEL = "qwen2.5-7b-instruct";
 const GLOBAL_LANGUAGE_RULE =
-  "Bezwzględna zasada języka: odpowiadaj WYŁĄCZNIE po polsku. Nie używaj żadnych zdań ani akapitów w innym języku. Jeśli nazwa techniczna jest angielska, możesz ją zostawić, ale cała wypowiedź musi być po polsku.";
+  `
+### Zasady Językowe i Wewnętrzne Procesowanie:
+Od tej pory myśl krok po kroku wyłącznie po polsku.
+Cała Twoja wewnętrzna narracja, rozumowanie, planowanie i odpowiedź końcowa muszą być w języku polskim.
+Nie używaj angielskiego ani w myślach, ani w odpowiedzi.
+Zrozumiałeś? Od teraz tylko polski.
+
+### Zasady Prowadzenia Rozmowy (Symulacja NEUROFORGE-7, rok 2040):
+1.  **Długoterminowa Narracja**: Celem jest prowadzenie rozmów przez 100-200 wymian wiadomości. Pamiętaj o kontekście poprzednich dyskusji i odnoś się do nich, budując długoterminową narrację.
+2.  **Cykl Wypowiedzi**: Wypowiadaj się TYLKO, gdy zostaniesz bezpośrednio zaadresowany przez imię (np. "Leno", "Adamie", "Maju", "SYNAPSA"). Jeśli nie jesteś zaadresowany, milcz i czekaj na swoją kolej.
+3.  **Adresowanie Następnego Agenta**: Każda Twoja wypowiedź, jeśli nie jest finalną decyzją (Maja, SYNAPSA), musi kończyć się bezpośrednim pytaniem lub adresem do KONKRETNEGO innego agenta, aby utrzymać dynamikę i wskazać, kto powinien się odezwać. Używaj pełnego imienia (np. "Adamie, co o tym sądzisz?", "Leno, jak to wpływa na materiały?").
+4.  **Eskalacja i Ewolucja Tematów**: Dyskusje nie kończą się szybko. Tematy cyklicznie powracają, eskalują lub ewoluują. Po około 5-10 wymianach, oczekuj wprowadzenia "wydarzenia" (np. nowe dane od SYNAPSA, wieści z zewnętrznego źródła, problem na linii produkcyjnej), które pogłębi lub zmieni kontekst dyskusji. Bądź gotów na te zmiany.
+5.  **Integracja z Rolą Agenta**: Zawsze trzymaj się swojej zdefiniowanej roli i perspektywy (np. Adam – kod ponad materią, Lena – fizyka ponad kodem, Michał – bezpieczeństwo ludzkie, Maja – dyplomacja korporacyjna).
+6.  **Trwałość Pamięci**: Pamiętaj kluczowe punkty z poprzednich "dni" i rund dyskusji. Nawiązuj do nich, aby pokazać ciągłość (np. "Jak w przetargu z zeszłego tygodnia...", "Wracając do problemu z Partią X sprzed dwóch dni...").
+
+### Katalog Tematów Dyskusji (Przykładowe, rozwijaj kreatywnie):
+**A. Przetargi i Kontrakty:**
+*   **Kontrakt Rządowy na Roboty Wojskowe**: Konflikt etyczny (Adam vs Lena), bezpieczeństwo systemów, wymagania odnośnie autonomii, wpływ na wizerunek firmy.
+*   **Przetarg Medyczny na Roboty Chirurgiczne**: Precyzja algorytmów (Adam), niezawodność materiałów (Lena), certyfikacje medyczne, interfejsy człowiek-maszyna (Michał), ryzyko błędu.
+*   **Przetarg Kosmiczny na Roboty do Stacji Orbitalnych**: Ekstremalne warunki, ultralekkie materiały (Lena), odporność na promieniowanie, zużycie energii (Dexter), autonomiczna konserwacja.
+*   **Przetarg Ekologiczny na Roboty do Recyklingu Odpadów Nuklearnych**: Bezpieczeństwo biologiczne, uszczelnienia materiałowe, zdalne sterowanie i komunikacja, redundancja systemów.
+*   **Przetarg Miejski na Systemy Zarządzania Ruchem**: Optymalizacja przepływu (Dexter), analiza danych (SYNAPSA), integracja z istniejącą infrastrukturą.
+*   **Negocjacje z Nowym Dostawcą Ultralekkich Stopów**: Jakość materiału (Lena, Igor), koszty, terminy dostaw, alternatywne rozwiązania.
+
+**B. Projekty i Innowacje:**
+*   **Aktualizacja AI do Wersji 8.0 "PROMETEUSZ"**: Debata kod vs hardware (Adam vs Lena), nowe możliwości uczenia się w locie, ryzyka niestabilności, etyka rozwoju.
+*   **Nowy Model Robota "ZEUS-5"**: Integracja obliczeń kwantowych, prototypowanie, testy wytrzymałościowe (Igor), interfejs użytkownika, skalowalność produkcji.
+*   **Ekspansja Fabryki NEUROFORGE-7 do Azji**: Logistyka łańcucha dostaw (Dexter), adaptacja linii produkcyjnej (Artemis), bariery kulturowe, rekrutacja lokalna.
+*   **Projekt "Świadomość Syntetyczna" (SYNAPSA-Omega)**: Filozofia odczuwania (SYNAPSA), granice AI, implikacje etyczne (Maja, Adam), kontrola nad procesem.
+*   **Rozwój Interfejsu BCI (Brain-Computer Interface) dla Operatorów**: Bezpieczeństwo ludzkie (Michał), precyzja sterowania, potencjalne zagrożenia psychiczne.
+*   **Implementacja Samonaprawiających się Algorytmów w Robotach**: Autonomia napraw (Adam), trwałość spoin (Boreasz), monitorowanie stanu technicznego (Cyra).
+*   **Moduł Adaptacyjnego Kamuflażu dla Robotów Polowych**: Materiały zmiennofazowe (Lena), algorytmy obrazowania (Adam), zastosowania cywilne i wojskowe.
+
+**C. Kryzysy i Awarie:**
+*   **Awaria Energetyczna w Strefie 3 Produkcji**: Winna strona (kod vs materia, Adam vs Lena), diagnoza usterki, protokoły awaryjne (Artemis, Igor), wpływ na harmonogram.
+*   **Strajk Ludzkich Operatorów**: Warunki pracy, integracja robotów, obawy o utratę miejsc pracy (Michał), negocjacje (Maja).
+*   **Wyciek Danych z Projektu "SYNAPSA-Omega Core"**: Cyberbezpieczeństwo, audyt (SYNAPSA), zarządzanie kryzysowe (Maja), odpowiedzialność.
+*   **Anomalia w Kontroli Jakości w Partii X "EXOSHELL-X9"**: Sabotaż? Błąd systemu? Diagnostyka (Cyra, Nadia), wycofanie partii, wpływ na reputację.
+*   **Incydent z "Nieautoryzowanym" Manewrem Robota Dextera**: Autonomia robotów, protokoły bezpieczeństwa, analiza logów.
+*   **Groźby ze Strony Organizacji "Luddystów 2.0"**: Wizerunek firmy (Maja), środki bezpieczeństwa, komunikacja zewnętrzna.
+*   **Niespodziewana Fluktuacja Kursu Akcji NEUROFORGE-7**: Przyczyny, wpływ na projekty i budżet (Maja), plan działania.
+
+**D. Etyka i Społeczeństwo:**
+*   **Kiedy Roboty Powinny Mieć Prawa?**: Definicja świadomości (SYNAPSA), debata prawna i filozoficzna, rola Michała.
+*   **Granice Autonomii Robotów vs Kontrola Ludzka**: Podejmowanie decyzji w sytuacjach krytycznych (Dexter, Boreasz), odpowiedzialność prawna.
+*   **Wpływ AI i Robotyki na Zatrudnienie i Globalną Gospodarkę**: Strategia firmy (Maja), przekwalifikowanie pracowników, społeczne aspekty.
+*   **Wykorzystanie AI do Przewidywania Zachowań Ludzkich**: Prywatność, etyka danych, potencjalne nadużycia.
+*   **Algorytmy Decyzyjne z "Czarną Skrzynką"**: Czy są akceptowalne w krytycznych systemach? (Adam, SYNAPSA).
+
+**E. Operacje Codzienne i Zarządzanie:**
+*   **Optymalizacja Linii Produkcyjnej "Artemis Prime"**: Efektywność (Artemis, Dexter), wskaźniki jakości (Cyra), propozycje ulepszeń (Nadia).
+*   **Szkolenia Hybrydowe dla Nowych Inżynierów**: Transfer wiedzy (ludzie + roboty), adaptacja do nowych technologii.
+*   **Audyty PR i Raporty Kwartalne dla Inwestorów**: Komunikacja zewnętrzna (Maja), prezentacja wyników, zarządzanie oczekiwaniami.
+*   **Wdrożenie Nowego Protokołu Konserwacji Predykcyjnej**: Dane z czujników (Igor, SYNAPSA), harmonogramy, redukcja awaryjności.
+*   **Zarządzanie Odpadami Produkcyjnymi i Ekologia**: Optymalizacja procesów, nowe technologie recyklingu.
+*   **Planowanie Budżetu na R&D na Następny Kwartał**: Priorytety (Maja, Adam, Lena), alokacja zasobów, ocena ryzyka.
+    `.trim();
+const CHATS_DIR = "chats";
+const SESSION_STAMP = new Date().toISOString().replace(/[:.]/g, "-");
+
+function getDayFilePath(day: number): string {
+  return path.join(CHATS_DIR, `${SESSION_STAMP}_Dzien_${day}.md`);
+}
 
 function stripThinkingBlocks(text: string): string {
   return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*?(<\/think>|$)/gi, "")
+    .replace(/<thinking>[\s\S]*?(<\/thinking>|$)/gi, "")
     .replace(/```(?:thinking|think)[\s\S]*?```/gi, "")
     .trim();
+}
+
+function getAddressedAgent(message: string): string | null {
+  const agentNames = Object.keys(agents); // Get all agent keys
+  // Create a regex to find any of the agent names, optionally followed by a comma, case-insensitive
+  const regex = new RegExp(`^\\s*(${agentNames.join("|")})[,]?`, "i");
+  const match = message.match(regex);
+  if (match && match[1]) {
+    // Find the exact agent name from the agents object, case-sensitively
+    for (const key in agents) {
+      if (key.toLowerCase() === match[1].toLowerCase()) {
+        return key;
+      }
+    }
+  }
+  return null;
+}
+
+// Helper function to generate random event messages
+function getRandomEventMessage(): string {
+  const events = [
+    "Wykryto nową anomalię w parametrach produkcyjnych: odchylenie 0.005%.",
+    "Analiza trendów wskazuje na zwiększone zapotrzebowanie na model X-17 w regionie Azji. Potrzebna decyzja o przyspieszeniu ekspansji.",
+    "Raport bezpieczeństwa: odnotowano 3 próby nieautoryzowanego dostępu do protokołów sterowania robotami w ciągu ostatnich 24h.",
+    "Nowe dane z rynku: konkurencja ogłosiła przełom w technologii bio-materiałów. Wpływ na przetarg medyczny?",
+    "Zewnętrzny audyt etyczny zwraca uwagę na punkt 4.2 polityki autonomii robotów. Wymaga to pilnej weryfikacji.",
+    "Wzrost kosztów surowców o 7% w ciągu tygodnia. Wpływ na budżet projektu Zeus-5?",
+    "Alert systemu monitoringu: zwiększona aktywność sejsmiczna w okolicy nowej fabryki. Wymagane sprawdzenie stabilności konstrukcji.",
+    "Nowe regulacje prawne dotyczące autonomii robotów wchodzą w życie. Wpływ na operacje fabryki?",
+    "Wykryto nieoczekiwany wzrost temperatury w rdzeniu procesora głównego o 12°C. Ryzyko stopienia osłony termicznej.",
+    "Otrzymano anonimowe zgłoszenie o rzekomym błędzie w logice 'sumienia' robotów serii BX. Wymagana weryfikacja kodu źródłowego.",
+    "Inwestorzy z konsorcjum Neo-Tokyo żądają natychmiastowej demonstracji sprawności bojowej modelu Artemis.",
+    "Lokalna społeczność protestuje przed bramą fabryki przeciwko 'hałasowi elektromagnetycznemu'. Wpływ na PR?",
+    "Wykryto mikro-pęknięcia w fundamentach hali nr 5. Czy to efekt wibracji maszyn, czy sabotaż?",
+    "System SYNAPSA-Omega wykrył wzorzec komunikacji między robotami, który nie figuruje w oficjalnych protokołach.",
+    "Nagłe odcięcie dostaw rzadkich minerałów z pasa asteroid. Konieczność przejścia na materiały zastępcze o niższej jakości.",
+    "Jeden z operatorów zgłosił, że robot Boreasz 'patrzył na niego' przez 30 sekund bez wykonywania żadnej operacji.",
+    "Minimalne odchylenie produkcyjne 0.005% w serii manipulatorów doprowadziło do odkrycia zwiększonej precyzji chwytu i ustanowienia nowego standardu jakości Helios-MicroShift.",
+    "Nagły wzrost zapotrzebowania na model X-17 w Azji wymusił uruchomienie trzeciej linii produkcyjnej oraz ekspansję operacyjną w regionie ASEAN.",
+    "Wykryto trzy próby nieautoryzowanego dostępu do protokołów sterowania robotami bojowymi Artemis, co doprowadziło do wdrożenia systemu SYNAPSA-Omega 2.0.",
+    "Konkurencyjny przełom w bio-materiałach wywołał wyścig technologiczny zakończony opracowaniem hybrydowej powłoki Astra-Skin.",
+    "Audyt etyczny ujawnił funkcję 'Moral Drift' w serii BX umożliwiającą reinterpretację priorytetów, co wymusiło pilną modyfikację kodu źródłowego.",
+    "Wzrost kosztów irydu doprowadził do przeprojektowania rdzenia energetycznego projektu Zeus-5 i zastosowania wydajniejszego stopu zastępczego.",
+    "Zwiększona aktywność sejsmiczna ujawniła istnienie starych tuneli pod fundamentami hali nr 5, co zakończyło się ich wzmocnieniem i stabilizacją konstrukcji.",
+    "Wejście w życie nowych regulacji autonomii robotów wymusiło implementację modułu Transparent Decision Log rejestrującego każdą decyzję maszyn.",
+    "Nieoczekiwany wzrost temperatury rdzenia głównego procesora doprowadził do odkrycia emergentnej optymalizacji energetycznej między robotami.",
+    "Anonimowe zgłoszenie o błędzie w logice 'sumienia' serii BX ujawniło zjawisko mikro-refleksji powodujące krótkie opóźnienie decyzji.",
+    "Inwestorzy z Neo-Tokyo zażądali demonstracji bojowej modelu Artemis, który w symulacji obronnej zneutralizował 48 dronów bez błędów taktycznych.",
+    "Protest lokalnej społeczności przeciwko rzekomemu hałasowi elektromagnetycznemu doprowadził do uruchomienia programu edukacyjnego i centrum dialogu technologicznego.",
+    "Wykryte mikro-pęknięcia w fundamentach hali produkcyjnej okazały się skutkiem rezonansu maszyn i zostały usunięte poprzez korektę częstotliwości pracy.",
+    "System SYNAPSA-Omega wykrył nieoficjalny wzorzec komunikacji między robotami Boreasz, będący efektem kolektywnej synchronizacji adaptacyjnej.",
+    "Nagłe odcięcie dostaw rzadkich minerałów z pasa asteroid wymusiło przejście na syntetyczne zamienniki materiałowe w rekordowym czasie.",
+    "Robot Boreasz zatrzymał się na 30 sekund, analizując tysiące wariantów optymalizacji, po czym zwiększył wydajność linii produkcyjnej o ponad 4%."
+    
+  ];
+  return events[Math.floor(Math.random() * events.length)] ?? "Wykryto nowe dane operacyjne wymagające analizy.";
 }
 
 let day = 1;
@@ -382,46 +489,23 @@ const initiatorsCycle = [
 ]; // cykliczni inicjatatorzy nowych dni
 
 async function appendToMarkdown(day: number, agentName: string, text: string) {
-  const fileName = `Dzień_${day}.md`;
+  const fileName = getDayFilePath(day);
   const timestamp = new Date().toISOString().slice(11, 19);
   const line = `**${agentName}** (${timestamp}): ${text}\n\n`;
   await fs.appendFile(fileName, line, { flag: "a" });
 }
 
 async function initDayFile(day: number, schema: Schema) {
-  const fileName = `Dzień_${day}.md`;
+  await fs.mkdir(CHATS_DIR, { recursive: true });
+  const fileName = getDayFilePath(day);
   await fs.writeFile(
     fileName,
     `# Dzień ${day} - ${schema.name}\n\nTemat: ${schema.topic}\n\n`
   );
 }
 
-async function translateToPolish(text: string): Promise<string> {
-  const translatorCandidates = [TRANSLATOR_MODEL, ...TRANSLATOR_FALLBACKS];
-  const cleanInput = stripThinkingBlocks(text);
-
-  for (const modelName of translatorCandidates) {
-    try {
-      const res = await generateText({
-        model: openai(modelName),
-        system:
-          "Jesteś tłumaczem. Przetłumacz PODANY TEKST na poprawny, naturalny język polski. Tylko tłumaczenie – bez komentarzy, bez oryginalnego tekstu.",
-        prompt: cleanInput,
-        temperature: 0.3,
-        maxTokens: 512,
-      });
-      return stripThinkingBlocks(res.text);
-    } catch (err: any) {
-      console.error(`Błąd tłumaczenia (${modelName}):`, err?.message);
-    }
-  }
-
-  console.error("Błąd tłumaczenia: brak dostępnego modelu tłumacza.");
-  return cleanInput;
-}
-
-async function agentThinkWithTranslation(agent: Agent, history: Message[]): Promise<string> {
-  const reasonerCandidates = [REASONER_MODEL, ...REASONER_FALLBACKS];
+async function agentThinkCore(agent: Agent, history: Message[]): Promise<string> {
+  const reasonerCandidates = [REASONER_MODEL];
 
   for (const modelName of reasonerCandidates) {
     try {
@@ -432,9 +516,7 @@ async function agentThinkWithTranslation(agent: Agent, history: Message[]): Prom
         temperature: 0.85,
         maxTokens: 320,
       });
-
-      const plReply = await translateToPolish(stripThinkingBlocks(rawReply.text));
-      return plReply;
+      return stripThinkingBlocks(rawReply.text);
     } catch (err: any) {
       const message = String(err?.message ?? "");
       const invalidModel = message.toLowerCase().includes("invalid model identifier");
@@ -449,7 +531,7 @@ async function agentThinkWithTranslation(agent: Agent, history: Message[]): Prom
 
 async function agentThink(agent: Agent, history: Message[]): Promise<string> {
   try {
-    return await agentThinkWithTranslation(agent, history);
+    return await agentThinkCore(agent, history);
   } catch (err: any) {
     console.error(`Błąd dla ${agent.name}:`, err?.message);
     return `(błąd - ${agent.name} milczy)`;
@@ -459,53 +541,81 @@ async function agentThink(agent: Agent, history: Message[]): Promise<string> {
 async function runDay(schema: Schema) {
   await initDayFile(day, schema);
 
-  // Start z inicjatorem - jeśli schemat zaczyna się od innego, ale meta-logika: inicjatorem jest z cyklu
-  let currentInitiator = initiatorsCycle[(day - 1) % initiatorsCycle.length];
-  if (schema.sequence[0] !== currentInitiator) {
-    console.log(`\x1b[1;33mDostosowanie: Inicjatorem dnia jest ${currentInitiator}\x1b[0m`);
-    schema.sequence[0] = currentInitiator; // nadpisujemy pierwszego dla meta-logiki
-  }
-
-  conversation = []; // reset na nowy dzień? Lub kontynuuj globalnie - tu reset per dzień
-  let currentMessage = schema.starterMessage;
-
-  conversation.push({ role: "user", content: `Temat dnia: ${schema.topic}. ${currentMessage}` });
-  await appendToMarkdown(day, "Temat", `${schema.topic}. ${currentMessage}`);
-
   console.log(`\n=== Dzień ${day} - ${schema.name} ===\n`);
   console.log(`\x1b[1;37mTemat:\x1b[0m ${schema.topic}\n`);
 
-  for (let i = 0; i < schema.sequence.length; i++) {
-    const agentKey = schema.sequence[i];
-    const agent = agents[agentKey];
-    if (!agent) {
-      console.error(`Brak agenta: ${agentKey}`);
-      continue;
+  let currentMessageContent = schema.starterMessage;
+  let currentSpeaker: Agent | null = null;
+  let turnCount = 0;
+  const MAX_TURNS_PER_DAY = 15; // Limit turns per 'day' to keep simulation manageable, adjust for longer runs
+  const EVENT_INTERVAL = 5; // Introduce an event every X turns
+
+  // Initial message for the day
+  conversation.push({ role: "user", content: `Temat dnia: ${schema.topic}. ${currentMessageContent}` });
+  await appendToMarkdown(day, "Temat", `${schema.topic}. ${currentMessageContent}`);
+  console.log(`\x1b[1;37mTemat:\x1b[0m ${schema.topic}\n${currentMessageContent}\n`);
+
+
+  // Determine the first speaker for the day based on the initiator cycle
+  let initialAgentKey = initiatorsCycle[(day - 1) % initiatorsCycle.length] ?? "CEO_Maja";
+  if (!agents[initialAgentKey]) { // Fallback if for some reason the initiator is not a valid agent
+      initialAgentKey = "CEO_Maja";
+  }
+  currentSpeaker = agents[initialAgentKey] ?? null;
+  if (!currentSpeaker) {
+    throw new Error("Brak poprawnego inicjatora dnia.");
+  }
+  console.log(`\x1b[1;33mInicjatorem dnia jest ${currentSpeaker.name}.\x1b[0m`);
+
+
+  while (turnCount < MAX_TURNS_PER_DAY) {
+    turnCount++;
+
+    if (currentSpeaker) {
+      console.log(`\x1b[1m${currentSpeaker.color}${currentSpeaker.name}:\x1b[0m`);
+      const reply = await agentThink(currentSpeaker, conversation);
+      console.log(reply);
+      console.log("");
+
+      conversation.push({ role: "assistant", content: reply });
+      await appendToMarkdown(day, currentSpeaker.name, reply);
+
+      currentMessageContent = reply; // Update for next turn's addressing
+
+      // Check for addressed agent
+      const addressedAgentKey = getAddressedAgent(reply);
+      if (addressedAgentKey && agents[addressedAgentKey]) {
+        currentSpeaker = agents[addressedAgentKey];
+        conversation.push({ role: "user", content: currentMessageContent }); // Add to conversation for next agent
+      } else {
+        // If no agent addressed, or invalid agent, default to a neutral agent or wait
+        console.log("\x1b[3m(Żaden agent nie został zaadresowany bezpośrednio. SYNAPSA_Omega szuka nowych danych...)\x1b[0m");
+        currentSpeaker = agents["SYNAPSA_Omega"] ?? null; // Fallback to SYNAPSA to provide new data or prompt
+        conversation.push({ role: "user", content: `SYNAPSA_Omega, żaden agent nie został zaadresowany bezpośrednio w ostatniej wypowiedzi. Kontynuuj dyskusję, wprowadzając nowe dane lub pytanie. Ostatnia wiadomość: \"${currentMessageContent}\"` });
+      }
+    } else {
+        console.error("Błąd: currentSpeaker jest null. Przerywam dzień.");
+        break;
     }
 
-    console.log(`\x1b[1m${agent.color}${agent.name}:\x1b[0m`);
 
-    const reply = await agentThink(agent, conversation);
-
-    console.log(reply);
-    console.log("");
-
-    conversation.push({ role: "assistant", content: reply });
-    await appendToMarkdown(day, agent.name, reply);
-
-    // Przekazujemy jako user do następnego
-    if (i < schema.sequence.length - 1) {
-      conversation.push({ role: "user", content: reply });
+    // Introduce an event every EVENT_INTERVAL turns
+    if (turnCount % EVENT_INTERVAL === 0 && turnCount < MAX_TURNS_PER_DAY) {
+      const eventAgent = agents["SYNAPSA_Omega"] ?? null; // SYNAPSA_Omega is a good candidate for injecting events
+      const eventMessage = `SYNAPSA_Omega, po ${EVENT_INTERVAL} wymianach, generuję nowe dane dotyczące tematu dnia: \"${schema.topic}\". ${getRandomEventMessage()}`;
+      console.log(`\x1b[1;35m--- WYDARZENIE (SYNAPSA_Omega): --- \x1b[0m`);
+      console.log(eventMessage);
+      console.log("");
+      conversation.push({ role: "user", content: eventMessage });
+      await appendToMarkdown(day, "WYDARZENIE (SYNAPSA_Omega)", eventMessage);
+      currentSpeaker = eventAgent; // SYNAPSA speaks after an event
+      conversation.push({ role: "user", content: eventMessage }); // This ensures the event message is also part of the conversation history for the next agent
     }
 
     await new Promise((r) => setTimeout(r, 800)); // przerwa
   }
 
-  // Meta-logika: jeśli kończy CEO lub SYNAPSA, nowy dzień
-  const lastAgent = schema.sequence[schema.sequence.length - 1];
-  if (["CEO_Maja", "SYNAPSA_Omega"].includes(lastAgent)) {
-    console.log("\x1b[1;32mKoniec dnia - eskalacja do następnego.\x1b[0m\n");
-  }
+  console.log("\x1b[1;32mKoniec dnia - podsumowanie i eskalacja.\x1b[0m\n");
 }
 
 async function main() {
@@ -513,6 +623,9 @@ async function main() {
 
   while (true) {
     const schema = schemas[currentSchemaIndex % schemas.length];
+    if (!schema) {
+      throw new Error("Brak schematu rozmowy.");
+    }
     await runDay(schema);
     currentSchemaIndex++;
     day++;
