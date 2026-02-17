@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "nodeModulesDir": "auto",
+  "imports": {
+    "duckdb": "npm:duckdb@latest",
+    "ai": "npm:ai@latest",
+    "@ai-sdk/openai": "npm:@ai-sdk/openai@latest"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi server.ts",
+    "api": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi server.ts",
+    "debate": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi neuroforge-debate.ts"
+  }
+}

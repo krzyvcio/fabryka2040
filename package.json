@@ -1,20 +1,23 @@
 {
   "name": "fabryka2040",
-  "module": "index.ts",
+  "version": "1.0.0",
   "type": "module",
-  "private": true,
   "scripts": {
-    "start": "bun run index.ts",
-    "debate": "bun run neuroforge-debate.ts"
+    "dev": "tsx server.ts",
+    "api": "tsx server.ts",
+    "debate": "tsx neuroforge-debate.ts",
+    "build": "tsc"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.3.24",
-    "ai": "^4.3.16"
+    "@ai-sdk/openai": "^1.0.0",
+    "@duckdb/node-api": "1.4.4-r.1",
+    "ai": "^4.0.0",
+    "express": "^5.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

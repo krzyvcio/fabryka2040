@@ -1,18 +1,34 @@
-// file: neuroforge-debate.ts
-// uruchamiasz: bun run neuroforge-debate.ts
-// Wymagania: bun add ai @ai-sdk/openai
-// LM Studio na http://localhost:1234/v1 z załadowanym modelem, np. Qwen2.5-7B-Instruct lub lm-provers/QED-Nano
+// file: neuroforge-debate.ts v2.0
+// uruchamiasz: deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi neuroforge-debate.ts
+// Wymagania: LM Studio na http://localhost:1234/v1 z załadowanym modelem: Qwen2.5-7B-Instruct
 
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
-import fs from "fs/promises";
-import path from "path";
+import { createOpenAI } from "npm:@ai-sdk/openai@latest";
+import { generateText } from "npm:ai@latest";
+import fs from "node:fs/promises";
+import path from "npm:path@latest";
 
-const LMSTUDIO_URL = "http://localhost:1234/v1"; // zmień jeśli inny port
+// Module imports
+import { initializeDatabase, closeDatabase } from "./db.ts";
+import {
+  initializeAgent,
+  getEmotionalState,
+  analyzeReplyEmotion,
+  applyEmotionalDecay,
+  calculateGroupAffect,
+  recordGrudge,
+  updateEmotionalState,
+  updateRelation,
+} from "./emotionEngine.ts";
+import { buildAgentContext, recordInteraction } from "./memory.ts";
+import { generateDynamicEvent, recordEvent, getRecentEvents } from "./eventGenerator.ts";
+import { getAddressedAgent, selectNextSpeakerBasedOnEmotion, getAgentList } from "./speakerSelector.ts";
+import { getNarrativeContext, shouldInitiateConflict, shouldSabotage, recordDailySignature, checkForRecurringConflict } from "./narrativeEngine.ts";
+import { startConversationSession, logMessage, endConversationSession, getCurrentConversationId } from "./conversationLogger.ts";
 
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = createOpenAI({
   baseURL: LMSTUDIO_URL,
-  apiKey: "lm-studio", // dummy
+  apiKey: "lm-studio",
 });
 
 type Message = {
@@ -347,10 +363,15 @@ const schemas: Schema[] = [
   },
 ];
 
+// ===== CONFIG =====
 const REASONER_MODEL = "qwen2.5-7b-instruct";
-const GLOBAL_LANGUAGE_RULE =
-  `
-### Zasady Językowe i Wewnętrzne Procesowanie:
+const DRAMA_LEVEL = 0.8; // 0-1: frequency of conflicts and events
+const MAX_TURNS_PER_DAY = 120; // Extended from 15 to support 100-200 turn conversations
+const EVENT_INTERVAL = 8; // Generate event every N turns
+const CHATS_DIR = "chats";
+
+const GLOBAL_LANGUAGE_RULE = `
+### Zasady Językoweи Wewnętrzne Procesowanie:
 Od tej pory myśl krok po kroku wyłącznie po polsku.
 Cała Twoja wewnętrzna narracja, rozumowanie, planowanie i odpowiedź końcowa muszą być w języku polskim.
 Nie używaj angielskiego ani w myślach, ani w odpowiedzi.
@@ -405,8 +426,7 @@ Zrozumiałeś? Od teraz tylko polski.
 *   **Wdrożenie Nowego Protokołu Konserwacji Predykcyjnej**: Dane z czujników (Igor, SYNAPSA), harmonogramy, redukcja awaryjności.
 *   **Zarządzanie Odpadami Produkcyjnymi i Ekologia**: Optymalizacja procesów, nowe technologie recyklingu.
 *   **Planowanie Budżetu na R&D na Następny Kwartał**: Priorytety (Maja, Adam, Lena), alokacja zasobów, ocena ryzyka.
-    `.trim();
-const CHATS_DIR = "chats";
+`;
 const SESSION_STAMP = new Date().toISOString().replace(/[:.]/g, "-");
 
 function getDayFilePath(day: number): string {
@@ -419,62 +439,6 @@ function stripThinkingBlocks(text: string): string {
     .replace(/<thinking>[\s\S]*?(<\/thinking>|$)/gi, "")
     .replace(/```(?:thinking|think)[\s\S]*?```/gi, "")
     .trim();
-}
-
-function getAddressedAgent(message: string): string | null {
-  const agentNames = Object.keys(agents); // Get all agent keys
-  // Create a regex to find any of the agent names, optionally followed by a comma, case-insensitive
-  const regex = new RegExp(`^\\s*(${agentNames.join("|")})[,]?`, "i");
-  const match = message.match(regex);
-  if (match && match[1]) {
-    // Find the exact agent name from the agents object, case-sensitively
-    for (const key in agents) {
-      if (key.toLowerCase() === match[1].toLowerCase()) {
-        return key;
-      }
-    }
-  }
-  return null;
-}
-
-// Helper function to generate random event messages
-function getRandomEventMessage(): string {
-  const events = [
-    "Wykryto nową anomalię w parametrach produkcyjnych: odchylenie 0.005%.",
-    "Analiza trendów wskazuje na zwiększone zapotrzebowanie na model X-17 w regionie Azji. Potrzebna decyzja o przyspieszeniu ekspansji.",
-    "Raport bezpieczeństwa: odnotowano 3 próby nieautoryzowanego dostępu do protokołów sterowania robotami w ciągu ostatnich 24h.",
-    "Nowe dane z rynku: konkurencja ogłosiła przełom w technologii bio-materiałów. Wpływ na przetarg medyczny?",
-    "Zewnętrzny audyt etyczny zwraca uwagę na punkt 4.2 polityki autonomii robotów. Wymaga to pilnej weryfikacji.",
-    "Wzrost kosztów surowców o 7% w ciągu tygodnia. Wpływ na budżet projektu Zeus-5?",
-    "Alert systemu monitoringu: zwiększona aktywność sejsmiczna w okolicy nowej fabryki. Wymagane sprawdzenie stabilności konstrukcji.",
-    "Nowe regulacje prawne dotyczące autonomii robotów wchodzą w życie. Wpływ na operacje fabryki?",
-    "Wykryto nieoczekiwany wzrost temperatury w rdzeniu procesora głównego o 12°C. Ryzyko stopienia osłony termicznej.",
-    "Otrzymano anonimowe zgłoszenie o rzekomym błędzie w logice 'sumienia' robotów serii BX. Wymagana weryfikacja kodu źródłowego.",
-    "Inwestorzy z konsorcjum Neo-Tokyo żądają natychmiastowej demonstracji sprawności bojowej modelu Artemis.",
-    "Lokalna społeczność protestuje przed bramą fabryki przeciwko 'hałasowi elektromagnetycznemu'. Wpływ na PR?",
-    "Wykryto mikro-pęknięcia w fundamentach hali nr 5. Czy to efekt wibracji maszyn, czy sabotaż?",
-    "System SYNAPSA-Omega wykrył wzorzec komunikacji między robotami, który nie figuruje w oficjalnych protokołach.",
-    "Nagłe odcięcie dostaw rzadkich minerałów z pasa asteroid. Konieczność przejścia na materiały zastępcze o niższej jakości.",
-    "Jeden z operatorów zgłosił, że robot Boreasz 'patrzył na niego' przez 30 sekund bez wykonywania żadnej operacji.",
-    "Minimalne odchylenie produkcyjne 0.005% w serii manipulatorów doprowadziło do odkrycia zwiększonej precyzji chwytu i ustanowienia nowego standardu jakości Helios-MicroShift.",
-    "Nagły wzrost zapotrzebowania na model X-17 w Azji wymusił uruchomienie trzeciej linii produkcyjnej oraz ekspansję operacyjną w regionie ASEAN.",
-    "Wykryto trzy próby nieautoryzowanego dostępu do protokołów sterowania robotami bojowymi Artemis, co doprowadziło do wdrożenia systemu SYNAPSA-Omega 2.0.",
-    "Konkurencyjny przełom w bio-materiałach wywołał wyścig technologiczny zakończony opracowaniem hybrydowej powłoki Astra-Skin.",
-    "Audyt etyczny ujawnił funkcję 'Moral Drift' w serii BX umożliwiającą reinterpretację priorytetów, co wymusiło pilną modyfikację kodu źródłowego.",
-    "Wzrost kosztów irydu doprowadził do przeprojektowania rdzenia energetycznego projektu Zeus-5 i zastosowania wydajniejszego stopu zastępczego.",
-    "Zwiększona aktywność sejsmiczna ujawniła istnienie starych tuneli pod fundamentami hali nr 5, co zakończyło się ich wzmocnieniem i stabilizacją konstrukcji.",
-    "Wejście w życie nowych regulacji autonomii robotów wymusiło implementację modułu Transparent Decision Log rejestrującego każdą decyzję maszyn.",
-    "Nieoczekiwany wzrost temperatury rdzenia głównego procesora doprowadził do odkrycia emergentnej optymalizacji energetycznej między robotami.",
-    "Anonimowe zgłoszenie o błędzie w logice 'sumienia' serii BX ujawniło zjawisko mikro-refleksji powodujące krótkie opóźnienie decyzji.",
-    "Inwestorzy z Neo-Tokyo zażądali demonstracji bojowej modelu Artemis, który w symulacji obronnej zneutralizował 48 dronów bez błędów taktycznych.",
-    "Protest lokalnej społeczności przeciwko rzekomemu hałasowi elektromagnetycznemu doprowadził do uruchomienia programu edukacyjnego i centrum dialogu technologicznego.",
-    "Wykryte mikro-pęknięcia w fundamentach hali produkcyjnej okazały się skutkiem rezonansu maszyn i zostały usunięte poprzez korektę częstotliwości pracy.",
-    "System SYNAPSA-Omega wykrył nieoficjalny wzorzec komunikacji między robotami Boreasz, będący efektem kolektywnej synchronizacji adaptacyjnej.",
-    "Nagłe odcięcie dostaw rzadkich minerałów z pasa asteroid wymusiło przejście na syntetyczne zamienniki materiałowe w rekordowym czasie.",
-    "Robot Boreasz zatrzymał się na 30 sekund, analizując tysiące wariantów optymalizacji, po czym zwiększył wydajność linii produkcyjnej o ponad 4%."
-    
-  ];
-  return events[Math.floor(Math.random() * events.length)] ?? "Wykryto nowe dane operacyjne wymagające analizy.";
 }
 
 let day = 1;
@@ -504,19 +468,47 @@ async function initDayFile(day: number, schema: Schema) {
   );
 }
 
-async function agentThinkCore(agent: Agent, history: Message[]): Promise<string> {
+async function agentThinkCore(
+  agent: Agent,
+  history: Message[],
+  targetAgent?: string
+): Promise<string> {
+  // Build rich emotional context
+  await initializeAgent(agent.name);
+  const emotionalContext = await buildAgentContext(agent.name, targetAgent);
+  
+  // Get narrative context (temperature, maxTokens based on emotions)
+  const narrativeCtx = await getNarrativeContext(agent.name, targetAgent || "SYNAPSA_Omega", DRAMA_LEVEL);
+
+  // Combine system prompt with emotional state
+  const enrichedSystem = `${agent.systemPrompt}\n${emotionalContext}\n${GLOBAL_LANGUAGE_RULE}${
+    narrativeCtx.emotionalOverride ? `\n\nSpecjalna instrukcja: ${narrativeCtx.emotionalOverride}` : ""
+  }`;
+
   const reasonerCandidates = [REASONER_MODEL];
 
   for (const modelName of reasonerCandidates) {
     try {
       const rawReply = await generateText({
         model: openai(modelName),
-        system: `${agent.systemPrompt}\n\n${GLOBAL_LANGUAGE_RULE}`,
+        system: enrichedSystem,
         messages: history,
-        temperature: 0.85,
-        maxTokens: 320,
+        temperature: narrativeCtx.temperature,
+        maxTokens: narrativeCtx.maxTokens,
       });
-      return stripThinkingBlocks(rawReply.text);
+
+      const cleanReply = stripThinkingBlocks(rawReply.text);
+
+      // Analyze and update emotions after reply
+      const emotionAnalysis = await analyzeReplyEmotion(agent.name, cleanReply);
+      await updateEmotionalState(agent.name, emotionAnalysis);
+
+      // Record interaction
+      if (targetAgent) {
+        await recordInteraction(agent.name, targetAgent, cleanReply, emotionAnalysis.valence ?? 0, emotionAnalysis.arousal ?? 0);
+      }
+
+      return cleanReply;
     } catch (err: any) {
       const message = String(err?.message ?? "");
       const invalidModel = message.toLowerCase().includes("invalid model identifier");
@@ -529,108 +521,193 @@ async function agentThinkCore(agent: Agent, history: Message[]): Promise<string>
   throw new Error("Brak dostępnego modelu reasonera w LM Studio.");
 }
 
-async function agentThink(agent: Agent, history: Message[]): Promise<string> {
+async function agentThink(agent: Agent, history: Message[], targetAgent?: string): Promise<string> {
   try {
-    return await agentThinkCore(agent, history);
+    return await agentThinkCore(agent, history, targetAgent);
   } catch (err: any) {
     console.error(`Błąd dla ${agent.name}:`, err?.message);
-    return `(błąd - ${agent.name} milczy)`;
+    return `(${agent.name} doświadcza przeciążenia systemowego)`;
   }
 }
 
 async function runDay(schema: Schema) {
   await initDayFile(day, schema);
 
-  console.log(`\n=== Dzień ${day} - ${schema.name} ===\n`);
-  console.log(`\x1b[1;37mTemat:\x1b[0m ${schema.topic}\n`);
+  console.log(`\n${"=".repeat(80)}`);
+  console.log(`\x1b[1;36m𝐃𝐙𝐈𝐄́𝐍 ${day} — ${schema.name}\x1b[0m`);
+  console.log(`Temat: ${schema.topic}`);
+  console.log(`Drama Level: ${DRAMA_LEVEL}`);
+  console.log("=".repeat(80) + "\n");
 
   let currentMessageContent = schema.starterMessage;
   let currentSpeaker: Agent | null = null;
   let turnCount = 0;
-  const MAX_TURNS_PER_DAY = 15; // Limit turns per 'day' to keep simulation manageable, adjust for longer runs
-  const EVENT_INTERVAL = 5; // Introduce an event every X turns
 
-  // Initial message for the day
+  // Start conversation logging session
+  const groupAffectStart = await calculateGroupAffect();
+  const participantList = getAgentList();
+  const conversationId = await startConversationSession(
+    day,
+    schema.topic,
+    schema.name,
+    initiatorsCycle[(day - 1) % initiatorsCycle.length] ?? "CEO_Maja",
+    participantList,
+    [], // precedingEvents - could be enhanced with factory_events
+    {
+      avg_valence: groupAffectStart.avg_valence,
+      avg_stress: groupAffectStart.avg_stress,
+      avg_arousal: 0.5,
+    },
+    [] // unresolvedConflicts - could be populated from grudges
+  );
+  console.log(`📝 Conversation logged: ${conversationId}\n`);
+
+  // Initial message
   conversation.push({ role: "user", content: `Temat dnia: ${schema.topic}. ${currentMessageContent}` });
-  await appendToMarkdown(day, "Temat", `${schema.topic}. ${currentMessageContent}`);
-  console.log(`\x1b[1;37mTemat:\x1b[0m ${schema.topic}\n${currentMessageContent}\n`);
+  await appendToMarkdown(day, "🎯 TEMAT", `${schema.topic}\n${currentMessageContent}`);
 
-
-  // Determine the first speaker for the day based on the initiator cycle
+  // Initialize first speaker
   let initialAgentKey = initiatorsCycle[(day - 1) % initiatorsCycle.length] ?? "CEO_Maja";
-  if (!agents[initialAgentKey]) { // Fallback if for some reason the initiator is not a valid agent
-      initialAgentKey = "CEO_Maja";
+  if (!agents[initialAgentKey]) {
+    initialAgentKey = "CEO_Maja";
   }
   currentSpeaker = agents[initialAgentKey] ?? null;
   if (!currentSpeaker) {
     throw new Error("Brak poprawnego inicjatora dnia.");
   }
-  console.log(`\x1b[1;33mInicjatorem dnia jest ${currentSpeaker.name}.\x1b[0m`);
 
+  console.log(`\x1b[1;33m▶ Inicjator: ${currentSpeaker.name}\x1b[0m\n`);
 
+  // Main conversation loop
   while (turnCount < MAX_TURNS_PER_DAY) {
     turnCount++;
 
-    if (currentSpeaker) {
-      console.log(`\x1b[1m${currentSpeaker.color}${currentSpeaker.name}:\x1b[0m`);
-      const reply = await agentThink(currentSpeaker, conversation);
-      console.log(reply);
-      console.log("");
+    if (!currentSpeaker) {
+      console.error("Błąd: brak mówcy");
+      break;
+    }
 
-      conversation.push({ role: "assistant", content: reply });
-      await appendToMarkdown(day, currentSpeaker.name, reply);
+    console.log(`\x1b[1m[${turnCount}] ${currentSpeaker.color}${currentSpeaker.name}:\x1b[0m`);
 
-      currentMessageContent = reply; // Update for next turn's addressing
+    // Determine target agent (for emotional context)
+    let targetAgent: string | undefined;
+    const addressedFromLastMessage = await getAddressedAgent(currentMessageContent);
+    if (addressedFromLastMessage) {
+      targetAgent = addressedFromLastMessage;
+    }
 
-      // Check for addressed agent
-      const addressedAgentKey = getAddressedAgent(reply);
-      if (addressedAgentKey && agents[addressedAgentKey]) {
-        currentSpeaker = agents[addressedAgentKey];
-        conversation.push({ role: "user", content: currentMessageContent }); // Add to conversation for next agent
-      } else {
-        // If no agent addressed, or invalid agent, default to a neutral agent or wait
-        console.log("\x1b[3m(Żaden agent nie został zaadresowany bezpośrednio. SYNAPSA_Omega szuka nowych danych...)\x1b[0m");
-        currentSpeaker = agents["SYNAPSA_Omega"] ?? null; // Fallback to SYNAPSA to provide new data or prompt
-        conversation.push({ role: "user", content: `SYNAPSA_Omega, żaden agent nie został zaadresowany bezpośrednio w ostatniej wypowiedzi. Kontynuuj dyskusję, wprowadzając nowe dane lub pytanie. Ostatnia wiadomość: \"${currentMessageContent}\"` });
-      }
+    // Generate agent response with emotional context
+    const reply = await agentThink(currentSpeaker, conversation, targetAgent);
+    console.log(reply);
+    console.log("");
+
+    conversation.push({ role: "assistant", content: reply });
+    await appendToMarkdown(day, currentSpeaker.name, reply);
+    
+    // Log message to conversation database
+    await logMessage(currentSpeaker.name, targetAgent || null, reply, turnCount);
+    
+    currentMessageContent = reply;
+
+    // Select next speaker: prefer directly addressed, otherwise use emotional activation
+    let nextSpeaker: string | null = null;
+    const addressed = await getAddressedAgent(reply);
+    
+    if (addressed && agents[addressed]) {
+      nextSpeaker = addressed;
+      console.log(`\x1b[2m(adresowany: ${addressed})\x1b[0m`);
     } else {
-        console.error("Błąd: currentSpeaker jest null. Przerywam dzień.");
-        break;
+      // Select based on emotional activation
+      nextSpeaker = await selectNextSpeakerBasedOnEmotion(currentSpeaker.name, reply);
+      console.log(`\x1b[2m(wybór emocjonalny: ${nextSpeaker})\x1b[0m`);
     }
 
+    currentSpeaker = agents[nextSpeaker] ?? null;
+    conversation.push({ role: "user", content: reply });
 
-    // Introduce an event every EVENT_INTERVAL turns
+    // Check for event trigger
     if (turnCount % EVENT_INTERVAL === 0 && turnCount < MAX_TURNS_PER_DAY) {
-      const eventAgent = agents["SYNAPSA_Omega"] ?? null; // SYNAPSA_Omega is a good candidate for injecting events
-      const eventMessage = `SYNAPSA_Omega, po ${EVENT_INTERVAL} wymianach, generuję nowe dane dotyczące tematu dnia: \"${schema.topic}\". ${getRandomEventMessage()}`;
-      console.log(`\x1b[1;35m--- WYDARZENIE (SYNAPSA_Omega): --- \x1b[0m`);
-      console.log(eventMessage);
-      console.log("");
+      console.log(`\n\x1b[1;35m⚡ ZDARZENIE FABRYCZNE:\x1b[0m`);
+      const event = await generateDynamicEvent(schema.topic, DRAMA_LEVEL);
+      console.log(`  ${event.description}`);
+      console.log(`  [Severity: ${(event.severity * 100).toFixed(0)}%]\n`);
+
+      await recordEvent(event);
+      
+      const eventMessage = `Nowe zdarzenie: "${event.description}" (severity: ${event.severity.toFixed(2)}). Jak to wpływa na Twoją strategię?`;
       conversation.push({ role: "user", content: eventMessage });
-      await appendToMarkdown(day, "WYDARZENIE (SYNAPSA_Omega)", eventMessage);
-      currentSpeaker = eventAgent; // SYNAPSA speaks after an event
-      conversation.push({ role: "user", content: eventMessage }); // This ensures the event message is also part of the conversation history for the next agent
+      await appendToMarkdown(day, "⚡ ZDARZENIE", event.description);
     }
 
-    await new Promise((r) => setTimeout(r, 800)); // przerwa
+    // Check daily ending condition
+    const groupAffect = await calculateGroupAffect();
+    if (turnCount > 50 && groupAffect.avg_stress > 0.9) {
+      console.log(`\n\x1b[1;33m⚠️  Grupy stress krytyczny (${(groupAffect.avg_stress * 100).toFixed(0)}%) — Kończymy dzień.\x1b[0m\n`);
+      break;
+    }
+
+    await new Promise((r) => setTimeout(r, 600));
   }
 
-  console.log("\x1b[1;32mKoniec dnia - podsumowanie i eskalacja.\x1b[0m\n");
+  // Record daily emotional signature
+  const finalAffect = await calculateGroupAffect();
+  await recordDailySignature(day, finalAffect.avg_valence, finalAffect.avg_stress);
+
+  console.log("\x1b[1;32m" + "=".repeat(80) + "\x1b[0m");
+  console.log(
+    `\x1b[1;32mKoniec dnia ${day} — ${turnCount} tur | Valence: ${finalAffect.avg_valence.toFixed(2)} | Stress: ${finalAffect.avg_stress.toFixed(2)}\x1b[0m`
+  );
+  console.log("=".repeat(80) + "\n");
+
+  // End conversation logging session
+  await endConversationSession(
+    finalAffect.avg_valence, 
+    finalAffect.avg_stress,
+    `Day ${day}: ${schema.name} - ${turnCount} turns`
+  );
+
+  // Daily emotional decay
+  await applyEmotionalDecay(1);
 }
 
 async function main() {
-  console.log("\n=== Symulacja NEUROFORGE-7 2040 - Ctrl+C aby przerwać ===\n");
+  // Initialize database
+  console.log("\x1b[1;36m🔧 Initializing NEUROFORGE-7 v2.0...\x1b[0m");
+  await initializeDatabase();
+  
+  // Initialize all agents
+  for (const agentKey of Object.keys(agents)) {
+    await initializeAgent(agentKey);
+  }
 
-  while (true) {
-    const schema = schemas[currentSchemaIndex % schemas.length];
-    if (!schema) {
-      throw new Error("Brak schematu rozmowy.");
+  console.log("\x1b[1;32m✓ System ready\x1b[0m\n");
+  console.log("\x1b[1;36m=== SYMULACJA NEUROFORGE-7 2040 (v2.0) ===\x1b[0m");
+  console.log("Emocje + Dynamika + DuckDB Memory\n");
+  console.log("Ctrl+C aby przerwać\n");
+
+  try {
+    let daysRun = 0;
+    while (true && daysRun < 10) {
+      // Limit to 10 days for testing; remove for continuous simulation
+      const schema = schemas[currentSchemaIndex % schemas.length];
+      if (!schema) {
+        throw new Error("Brak schematu rozmowy.");
+      }
+      await runDay(schema);
+      currentSchemaIndex++;
+      day++;
+      daysRun++;
+      await new Promise((r) => setTimeout(r, 1500));
     }
-    await runDay(schema);
-    currentSchemaIndex++;
-    day++;
-    await new Promise((r) => setTimeout(r, 2000)); // przerwa między dniami
+  } finally {
+    console.log("\n\x1b[1;33m🛑 Zamykanie systemu...\x1b[0m");
+    await closeDatabase();
+    console.log("\x1b[1;32m✓ System wyłączony\x1b[0m");
+    process.exit(0);
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error("\x1b[1;31mKRYTYCZNY BŁĄD:\x1b[0m", err);
+  process.exit(1);
+});

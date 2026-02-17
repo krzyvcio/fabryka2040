@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEUROFORGE-7 | Fabryka Świadomości 2040</title>
+  <link rel="stylesheet" href="/web/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="noise"></div>
+  <div class="grid-bg"></div>
+  
+  <div class="container">
+    <header>
+      <div class="header-grid">
+        <div class="logo-section">
+          <div class="logo-container">
+            <div class="logo-ring"></div>
+            <div class="logo-ring inner"></div>
+            <div class="logo-core">
+              <span class="logo-text">N7</span>
+            </div>
+          </div>
+          <div class="brand">
+            <h1>NEUROFORGE-7</h1>
+            <div class="subtitle">FABRYKA ŚWIADOMOŚCI SYNTETYCZNEJ</div>
+            <div class="year-badge">EST. 2040</div>
+          </div>
+        </div>
+        
+        <div class="status-bar">
+          <div class="status-item">
+            <div class="status-label">SYSTEM STATUS</div>
+            <div class="status-value online">
+              <span class="pulse"></span>
+              ONLINE
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">AGENTS ACTIVE</div>
+            <div class="status-value" id="agentCount">11</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">EMOTION ENGINE</div>
+            <div class="status-value stable">STABLE</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">TIME</div>
+            <div class="status-value" id="currentTime">--:--:--</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <div class="panel conversations-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="panel-icon">&#9670;</span>
+            ARCHIWUM DYSKURSÓW
+          </div>
+          <div class="panel-badge" id="conversationCount">0</div>
+        </div>
+        
+        <div class="panel-controls">
+          <div class="search-container">
+            <span class="search-icon">&#9906;</span>
+            <input type="text" id="searchInput" placeholder="Wyszukaj w archiwum..." class="search-box">
+          </div>
+          <button onclick="refreshConversations()" class="btn-refresh">
+            <span class="btn-icon">&#8635;</span>
+            <span class="btn-text">SYNC</span>
+          </button>
+        </div>
+        
+        <div id="conversationsList" class="conversations-list">
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">INICJALIZACJA SYSTEMU...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel chat-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="panel-icon">&#9647;</span>
+            STRUMIEŃ ŚWIADOMOŚCI
+          </div>
+          <div class="panel-controls-inline">
+            <button class="btn-icon-only" title="Eksport">&#8681;</button>
+            <button class="btn-icon-only" title="Analiza">&#9881;</button>
+          </div>
+        </div>
+        
+        <div id="chatViewContainer" class="chat-view-container">
+          <div class="empty-state">
+            <div class="empty-icon">&#9881;</div>
+            <div class="empty-title">WYBIERZ DYSKURS</div>
+            <div class="empty-subtitle">Z archiwum po lewej stronie</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel context-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="panel-icon">&#9632;</span>
+            KONTEKST EMOCJONALNY
+          </div>
+        </div>
+        
+        <div id="contextContent" class="context-content">
+          <div class="empty-state-mini">
+            <div class="empty-icon-mini">&#9679;</div>
+            <div>Brak aktywnego dyskursu</div>
+          </div>
+        </div>
+        
+        <div class="emotion-overview">
+          <div class="emotion-chart">
+            <div class="chart-title">VALENCE / STRESS</div>
+            <div class="chart-container">
+              <div class="chart-grid"></div>
+              <div class="chart-point" id="emotionPoint"></div>
+            </div>
+            <div class="chart-labels">
+              <span>-1</span>
+              <span>0</span>
+              <span>+1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <div class="footer-section">
+          <span class="footer-label">NEURAL NETWORK v7.2.41</span>
+        </div>
+        <div class="footer-section">
+          <span class="footer-label">SYNAPSA-OMEGA CORE</span>
+        </div>
+        <div class="footer-section">
+          <span class="footer-label" id="lastSync">OSTATNIA SYNCHRONIZACJA: --</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div id="messageModal" class="modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="messageModalTitle">SZCZEGÓŁY WIADOMOŚCI</div>
+        <button class="modal-close" onclick="closeMessageModal()">&#10005;</button>
+      </div>
+      <div class="modal-body" id="messageModalBody"></div>
+      <div class="modal-footer">
+        <div class="modal-status">NEUROFORGE-7 INTERFACE v2.0</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/web/app.js"></script>
+</body>
+</html>
