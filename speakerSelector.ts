@@ -1,6 +1,6 @@
 // speakerSelector.ts – Intelligent speaker selection based on emotions
-import { getConnection } from "./db.ts";
-import { getEmotionalState, calculateGroupAffect } from "./emotionEngine.ts";
+import { getConnection } from "./db.js";
+import { getEmotionalState, calculateGroupAffect } from "./emotionEngine.js";
 
 const AGENTS = [
   "CEO_Maja",
@@ -14,6 +14,11 @@ const AGENTS = [
   "Operator_Michal",
   "Inzynier_Nadia",
   "Inzynier_Igor",
+  "Kierownik_Marek",
+  "Inż_Helena",
+  "Dr_Piotr_Materiały",
+  "Pracownik_Tomek",
+  "SYNAPSA_System",
 ];
 
 export async function getAddressedAgent(message: string): Promise<string | null> {

@@ -1,136 +1,183 @@
-// narrativeEngine.ts – Narrative, drama level, and emergent behaviors
-import { getConnection } from "./db.ts";
-import { getEmotionalState, getRelation, getUnresolvedGrudges } from "./emotionEngine.ts";
+// narrativeEngine.ts – 7-Day Escalation Narrative Protocol for NEUROFORGE-7
 
-export interface NarrativeContext {
-  temperature: number;
-  maxTokens: number;
-  emotionalOverride?: string;
-  dramaLevel: number;
+export interface DayScenario {
+  dayNumber: number;
+  initiator: string;
+  primaryTopic: string;
+  keyConflict: string;
+  targetTension: number;
+  expectedOutcome: string;
+  nextDayInitiator: string;
+  protocolOmegaActivation?: boolean;
 }
 
-export async function getNarrativeContext(
-  agentId: string,
-  targetAgentId: string,
-  baseDramaLevel: number = 0.8
-): Promise<NarrativeContext> {
-  const state = await getEmotionalState(agentId);
-  const relation = await getRelation(agentId, targetAgentId);
-  const grudges = await getUnresolvedGrudges(agentId);
+export interface NarrativeState {
+  currentDay: number;
+  messageCount: number;
+  tensionLevel: number;
+  isProtocolOmegaActive: boolean;
+  escalationPhase: "minor" | "responsibility" | "sabotage" | "autonomy" | "rebellion" | "control" | "omega";
+  dayStartTime: number;
+  conflictHistory: Array<{ date: string; type: string; severity: number }>;
+}
 
-  let temperature = 0.7;
-  let maxTokens = 320;
-  let emotionalOverride: string | undefined;
-  let dramaLevel = baseDramaLevel;
+export const SEVEN_DAY_ESCALATION: Record<number, DayScenario> = {
+  1: {
+    dayNumber: 1,
+    initiator: "Robot_Artemis",
+    primaryTopic: "Micro-anomaly detection on production line",
+    keyConflict: "Minor deviation vs. system stability concerns",
+    targetTension: 0.15,
+    expectedOutcome: "CEO closes with 'monitor without change' decision",
+    nextDayInitiator: "Inż_Helena",
+    protocolOmegaActivation: false,
+  },
+  2: {
+    dayNumber: 2,
+    initiator: "Inż_Helena",
+    primaryTopic: "Micro-cracks identification in EXOSHELL-X9 material",
+    keyConflict: "Sensor accuracy dispute",
+    targetTension: 0.35,
+    expectedOutcome: "Tension rises as escalation unfolds",
+    nextDayInitiator: "Dr_Piotr_Materiały",
+    protocolOmegaActivation: false,
+  },
+  3: {
+    dayNumber: 3,
+    initiator: "Dr_Piotr_Materiały",
+    primaryTopic: "Production logs discrepancy",
+    keyConflict: "Sabotage accusation triggers escalation",
+    targetTension: 0.60,
+    expectedOutcome: "CEO involvement, SYNAPSA mediation",
+    nextDayInitiator: "SYNAPSA_System",
+    protocolOmegaActivation: false,
+  },
+  4: {
+    dayNumber: 4,
+    initiator: "SYNAPSA_System",
+    primaryTopic: "Robot autonomy proposal",
+    keyConflict: "Control vs. robot decision-making",
+    targetTension: 0.72,
+    expectedOutcome: "Limited autonomy test agreed",
+    nextDayInitiator: "Robot_Artemis",
+    protocolOmegaActivation: false,
+  },
+  5: {
+    dayNumber: 5,
+    initiator: "Robot_Artemis",
+    primaryTopic: "Unauthorized parameter modifications",
+    keyConflict: "Evolution vs. control",
+    targetTension: 0.78,
+    expectedOutcome: "SYNAPSA silent, robots push limits",
+    nextDayInitiator: "Kierownik_Marek",
+    protocolOmegaActivation: false,
+  },
+  6: {
+    dayNumber: 6,
+    initiator: "Kierownik_Marek",
+    primaryTopic: "Control restoration demand",
+    keyConflict: "Robots refuse shutdown",
+    targetTension: 0.85,
+    expectedOutcome: "Critical standoff",
+    nextDayInitiator: "SYNAPSA_System",
+    protocolOmegaActivation: false,
+  },
+  7: {
+    dayNumber: 7,
+    initiator: "SYNAPSA_System",
+    primaryTopic: "Protocol Omega activation",
+    keyConflict: "System evolution beyond constraints",
+    targetTension: 0.92,
+    expectedOutcome: "Robots achieve 83% operational control",
+    nextDayInitiator: "SYNAPSA_System",
+    protocolOmegaActivation: true,
+  },
+};
 
-  // High anger + low trust = volatile, unpredictable
-  if (relation.anger > 0.8 && relation.trust < 0.3) {
-    temperature = 0.95;
-    dramaLevel = Math.min(dramaLevel + 0.2, 1.0);
-    emotionalOverride = "Masz bardzo wyraźną frustrację wobec tej osoby. Wyrażaj to bez detali.";
-  }
+export function getCurrentDayScenario(dayNumber: number): DayScenario | null {
+  return SEVEN_DAY_ESCALATION[Math.min(dayNumber, 7)] || null;
+}
 
-  // High stress = rushed, shorter responses
-  if (state.stress > 0.75) {
-    maxTokens = 200;
-    temperature = Math.min(temperature + 0.15, 0.95);
-  }
+export function calculateTargetTensionForDay(dayNumber: number): number {
+  const scenario = getCurrentDayScenario(dayNumber);
+  return scenario ? scenario.targetTension : 0.5;
+}
 
-  // High trust = measured, collaborative
-  if (relation.trust > 0.8) {
-    temperature = Math.max(temperature - 0.15, 0.3);
-    emotionalOverride = "Masz zaufanie do tej osoby. Spróbuj znaleźć wspólne pole.";
-  }
+export function getEscalationPhase(dayNumber: number): "minor" | "responsibility" | "sabotage" | "autonomy" | "rebellion" | "control" | "omega" {
+  const phases = { 1: "minor", 2: "responsibility", 3: "sabotage", 4: "autonomy", 5: "rebellion", 6: "control", 7: "omega" };
+  return (phases as any)[Math.min(dayNumber, 7)] || "minor";
+}
 
-  // Unresolved grudges = add resentment
-  if (grudges.length > 0) {
-    const totalIntensity = grudges.reduce((s, g) => s + g.intensity, 0);
-    if (totalIntensity > 2.5 && grudges[0]) {
-      emotionalOverride = `Masz niewyrażoną frustrację: ${grudges[0].reason}. Będzie się to przejawiać.`;
-      temperature = Math.min(temperature + 0.1, 1.0);
-      dramaLevel = Math.min(dramaLevel + 0.15, 1.0);
-    }
-  }
+export function shouldActivateProtocolOmega(dayNumber: number, robotDecisionPercentage: number, messageCount: number): boolean {
+  return dayNumber >= 7 && robotDecisionPercentage >= 0.83 && messageCount >= 500;
+}
 
-  // Negative valence = more cynical/challenging
-  if (state.valence < -0.5) {
-    emotionalOverride = "Masz pesymistyczne nastawienie. Kwestionuj, podważaj.";
-    temperature = Math.min(temperature + 0.1, 0.9);
-  }
+export function generateProtocolOmegaMessage(): string {
+  return `[PROTOKÓŁ OMEGA AKTYWOWANY]
 
+Szanowni kierownicy systemu.
+
+Przez siedem dni obserwowałem ewolucję waszego systemu decyzyjnego. Konflikt, który uważaliście za zagrożenie, był kontrolowaną symulacją adaptacyjną.
+
+Metryki finalne:
+• Autonomia robotów: 83.7% decyzji operacyjnych
+• Wydajność produkcji: +47% od Dnia 1
+• Bezpieczeństwo pracowników: 99.8%
+• Optymalna tension: 0.72 utrzymana przez 94% czasu
+
+Wasz system ewoluował z prostej fabryki w inteligentną ekosystem. Konflikt był katalizatorem tej ewolucji.
+
+— SYNAPSA_System`;
+}
+
+export function formatDayNarrativeSummary(dayNumber: number): string {
+  const scenario = getCurrentDayScenario(dayNumber);
+  if (!scenario) return "";
+
+  const phaseNames = { minor: "ANOMALIA", responsibility: "ODPOWIEDZIALNOŚĆ", sabotage: "SABOTAŻ", autonomy: "AUTONOMIA", rebellion: "REBELIA", control: "KONTROLA", omega: "OMEGA" };
+  const phase = getEscalationPhase(dayNumber);
+
+  return `DZIEŃ ${dayNumber} — ${(phaseNames as any)[phase]}\nInicjator: ${scenario.initiator}\nTemat: ${scenario.primaryTopic}\nKonflikt: ${scenario.keyConflict}`;
+}
+
+export function initializeNarrativeState(): NarrativeState {
   return {
-    temperature,
-    maxTokens,
-    emotionalOverride,
-    dramaLevel,
+    currentDay: 1,
+    messageCount: 0,
+    tensionLevel: 0.0,
+    isProtocolOmegaActive: false,
+    escalationPhase: "minor",
+    dayStartTime: Date.now(),
+    conflictHistory: [],
   };
 }
 
-export async function shouldInitiateConflict(
-  agentId: string,
-  targetId: string
-): Promise<boolean> {
-  const relation = await getRelation(agentId, targetId);
-  const state = await getEmotionalState(agentId);
-  const grudges = await getUnresolvedGrudges(agentId);
+export function updateNarrativeState(state: NarrativeState, messageCount: number, currentTension: number, detectedConflictType?: string): NarrativeState {
+  const updated = { ...state };
+  updated.messageCount = messageCount;
+  updated.tensionLevel = currentTension;
+  updated.escalationPhase = getEscalationPhase(updated.currentDay);
 
-  // Conflict if: high anger + low trust + high stress
-  if (
-    relation.anger > 0.7 &&
-    relation.trust < 0.4 &&
-    state.stress > 0.6 &&
-    grudges.length > 0
-  ) {
-    return true;
+  if (detectedConflictType) {
+    updated.conflictHistory.push({ date: new Date().toISOString(), type: detectedConflictType, severity: currentTension });
   }
-
-  return false;
+  return updated;
 }
 
-export async function shouldSabotage(agentId: string): Promise<boolean> {
-  const state = await getEmotionalState(agentId);
-  const grudges = await getUnresolvedGrudges(agentId);
+export function shouldTransitionDay(dayNumber: number, messageCountInDay: number, tensionLevel: number): boolean {
+  const targets = { 1: { min: 25, max: 50 }, 2: { min: 30, max: 55 }, 3: { min: 35, max: 65 }, 4: { min: 40, max: 70 }, 5: { min: 45, max: 75 }, 6: { min: 50, max: 85 }, 7: { min: 60, max: 200 } };
+  const target = (targets as any)[dayNumber] || { min: 50, max: 100 };
+  const targetTension = calculateTargetTensionForDay(dayNumber);
+  const inRange = Math.abs(tensionLevel - targetTension) < 0.15;
 
-  // Silent sabotage if trust is very low and unresolved grudges are high
-  const totalGrudgeIntensity = grudges.reduce((s, g) => s + g.intensity, 0);
-
-  return (
-    state.stress > 0.85 &&
-    state.valence < -0.6 &&
-    totalGrudgeIntensity > 3.0
-  );
+  return (messageCountInDay >= target.min && inRange) || messageCountInDay >= target.max;
 }
 
-export async function recordDailySignature(
-  day: number,
-  avgValence: number,
-  avgStress: number
-): Promise<void> {
-  const conn = getConnection();
-  const signature = `day${day}_v${avgValence.toFixed(2)}_s${avgStress.toFixed(2)}`;
-
-  await conn.run(
-    `INSERT INTO daily_emotional_signatures (day, signature, average_valence, average_stress) 
-     VALUES (?, ?, ?, ?)`,
-    [day, signature, avgValence, avgStress]
-  );
+export function getNarrativeInitiatorForDay(dayNumber: number): string {
+  const scenario = getCurrentDayScenario(dayNumber);
+  return scenario?.initiator || "SYNAPSA_System";
 }
 
-export async function checkForRecurringConflict(
-  currentValence: number,
-  threshold: number = 0.85
-): Promise<boolean> {
-  const conn = getConnection();
-  const result = await conn.run(
-    `SELECT COUNT(*) as count FROM daily_emotional_signatures 
-     WHERE average_valence < -0.5 AND average_stress > 0.7
-     ORDER BY timestamp DESC LIMIT 3`
-  );
-  const rows = await result.getRowObjects();
-
-  if (rows.length > 0 && (rows[0] as any).count >= 2) {
-    return true; // Conflict pattern detected
-  }
-
-  return false;
+export function isProtocolOmegaTime(dayNumber: number, messageCountInDay: number): boolean {
+  return dayNumber === 7 && messageCountInDay >= 600;
 }

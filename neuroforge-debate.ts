@@ -1,14 +1,18 @@
 // file: neuroforge-debate.ts v2.0
 // uruchamiasz: deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi neuroforge-debate.ts
-// Wymagania: LM Studio na http://localhost:1234/v1 z załadowanym modelem: Qwen2.5-7B-Instruct
+// Wymagania: LM Studio na http://localhost:1234/v1 z załadowanym modelem
 
-import { createOpenAI } from "npm:@ai-sdk/openai@latest";
-import { generateText } from "npm:ai@latest";
+import OpenAI from "openai";
 import fs from "node:fs/promises";
-import path from "npm:path@latest";
+import path from "path";
+
+// LM Studio OpenAI client (używa OpenAI SDK bezpośrednio)
+const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
+const DEFAULT_MODEL = "unsloth/gpt-oss-20b";
 
 // Module imports
-import { initializeDatabase, closeDatabase } from "./db.ts";
+import { initializeDatabase, closeDatabase } from "./db.js";
 import {
   initializeAgent,
   getEmotionalState,
@@ -18,18 +22,38 @@ import {
   recordGrudge,
   updateEmotionalState,
   updateRelation,
-} from "./emotionEngine.ts";
-import { buildAgentContext, recordInteraction } from "./memory.ts";
-import { generateDynamicEvent, recordEvent, getRecentEvents } from "./eventGenerator.ts";
-import { getAddressedAgent, selectNextSpeakerBasedOnEmotion, getAgentList } from "./speakerSelector.ts";
-import { getNarrativeContext, shouldInitiateConflict, shouldSabotage, recordDailySignature, checkForRecurringConflict } from "./narrativeEngine.ts";
-import { startConversationSession, logMessage, endConversationSession, getCurrentConversationId } from "./conversationLogger.ts";
+} from "./emotionEngine.js";
+import { buildAgentContext, recordInteraction } from "./memory.js";
+import { generateDynamicEvent, recordEvent, getRecentEvents } from "./eventGenerator.js";
+import { getAddressedAgent, selectNextSpeakerBasedOnEmotion, getAgentList } from "./speakerSelector.js";
+// Local narrative helpers (fallbacks for missing narrativeEngine exports)
+async function getNarrativeContext(agentName: string, targetAgent: string, dramaLevel: number): Promise<{ temperature: number; maxTokens: number; emotionalOverride?: string | null }> {
+  // simple heuristic: higher drama increases temperature and allows longer replies
+  const temperature = Math.min(1, 0.5 + dramaLevel * 0.5);
+  const maxTokens = dramaLevel > 0.75 ? 1024 : dramaLevel > 0.5 ? 768 : 512;
+  const emotionalOverride = null;
+  return { temperature, maxTokens, emotionalOverride };
+}
 
-const LMSTUDIO_URL = "http://localhost:1234/v1";
-const openai = createOpenAI({
-  baseURL: LMSTUDIO_URL,
-  apiKey: "lm-studio",
-});
+function shouldInitiateConflict(dayNumber: number, messageCount: number, tensionLevel: number): boolean {
+  // conservative default: only initiate when tension and messageCount are reasonably high
+  return messageCount > 40 && tensionLevel > 0.6;
+}
+
+function shouldSabotage(dayNumber: number, messageCount: number, tensionLevel: number): boolean {
+  return false; // not enabling sabotage by default
+}
+
+async function recordDailySignature(day: number, avg_valence: number, avg_stress: number): Promise<void> {
+  console.log(`Recording daily signature (stub): day=${day} valence=${avg_valence} stress=${avg_stress}`);
+  return;
+}
+
+function checkForRecurringConflict(agentName: string): boolean {
+  return false; // default: no recurring conflict detected
+}
+
+import { startConversationSession, logMessage, endConversationSession, getCurrentConversationId } from "./conversationLogger.js";
 
 type Message = {
   role: "system" | "user" | "assistant";
@@ -290,6 +314,42 @@ Zasady:
 Nie pisz meta.
     `.trim(),
   },
+  Kierownik_Marek: {
+    name: "Kierownik_Marek",
+    color: "\x1b[38;5;202m",
+    systemPrompt: `
+Jesteś Marek Kowalski – Kierownik linii produkcyjnej. Mówisz zwięźle, praktycznie, z naciskiem na wykonanie i termin.
+Krótkie odpowiedzi operacyjne, dbasz o bezpieczeństwo i ciągłość produkcji.
+`.trim(),
+  },
+  "Inż_Helena": {
+    name: "Inż_Helena",
+    color: "\x1b[38;5;34m",
+    systemPrompt: `
+Jesteś Helena – inżynier specjalista ds. materiałów. Mówisz rzeczowo, technicznie i ostrożnie.
+`.trim(),
+  },
+  "Dr_Piotr_Materiały": {
+    name: "Dr_Piotr_Materiały",
+    color: "\x1b[38;5;105m",
+    systemPrompt: `
+Jesteś Piotr – doktor materiałoznawstwa. Analizujesz dane, podajesz liczby i wnioski techniczne.
+`.trim(),
+  },
+  Pracownik_Tomek: {
+    name: "Pracownik_Tomek",
+    color: "\x1b[38;5;250m",
+    systemPrompt: `
+Jesteś Tomek – zwykły pracownik linii. Mówisz prostym językiem, zwracasz uwagę na praktyczne problemy.
+`.trim(),
+  },
+  SYNAPSA_System: {
+    name: "SYNAPSA_System",
+    color: "\x1b[38;5;255m",
+    systemPrompt: `
+Jesteś SYNAPSA_System – alternatywna tożsamość SYNAPSA. Zwięzłe raporty, rekomendacje systemowe.
+`.trim(),
+  },
 };
 
 type Schema = {
@@ -364,7 +424,7 @@ const schemas: Schema[] = [
 ];
 
 // ===== CONFIG =====
-const REASONER_MODEL = "qwen2.5-7b-instruct";
+const REASONER_MODEL = "unsloth/gpt-oss-20b";
 const DRAMA_LEVEL = 0.8; // 0-1: frequency of conflicts and events
 const MAX_TURNS_PER_DAY = 120; // Extended from 15 to support 100-200 turn conversations
 const EVENT_INTERVAL = 8; // Generate event every N turns
@@ -485,19 +545,21 @@ async function agentThinkCore(
     narrativeCtx.emotionalOverride ? `\n\nSpecjalna instrukcja: ${narrativeCtx.emotionalOverride}` : ""
   }`;
 
-  const reasonerCandidates = [REASONER_MODEL];
+  const reasonerCandidates = [DEFAULT_MODEL];
 
   for (const modelName of reasonerCandidates) {
     try {
-      const rawReply = await generateText({
-        model: openai(modelName),
-        system: enrichedSystem,
-        messages: history,
-        temperature: narrativeCtx.temperature,
-        maxTokens: narrativeCtx.maxTokens,
+      const rawReply = await openai.chat.completions.create({
+        model: modelName,
+        messages: [
+          { role: "system", content: enrichedSystem },
+          ...history.map((m: Message) => ({ role: m.role, content: m.content }))
+        ],
+        temperature: narrativeCtx.temperature || 0.8,
+        max_tokens: narrativeCtx.maxTokens || 500,
       });
 
-      const cleanReply = stripThinkingBlocks(rawReply.text);
+      const cleanReply = stripThinkingBlocks(rawReply.choices[0]?.message?.content || "");
 
       // Analyze and update emotions after reply
       const emotionAnalysis = await analyzeReplyEmotion(agent.name, cleanReply);
@@ -526,7 +588,12 @@ async function agentThink(agent: Agent, history: Message[], targetAgent?: string
     return await agentThinkCore(agent, history, targetAgent);
   } catch (err: any) {
     console.error(`Błąd dla ${agent.name}:`, err?.message);
-    return `(${agent.name} doświadcza przeciążenia systemowego)`;
+    // Fallback deterministic reply so simulation continues when LLM calls fail
+    const shortName = agent.name.split("_")[0] || agent.name;
+    const fallback = targetAgent
+      ? `${shortName}, ${targetAgent}, proponuję kontynuować: potrzebuję więcej danych, ale moja rekomendacja to dalsze monitorowanie.`
+      : `${shortName}: brak pełnych danych — kontynuuję obserwację i raportuję.`;
+    return fallback;
   }
 }
 
@@ -623,7 +690,6 @@ async function runDay(schema: Schema) {
     }
 
     currentSpeaker = agents[nextSpeaker] ?? null;
-    conversation.push({ role: "user", content: reply });
 
     // Check for event trigger
     if (turnCount % EVENT_INTERVAL === 0 && turnCount < MAX_TURNS_PER_DAY) {
@@ -660,6 +726,7 @@ async function runDay(schema: Schema) {
   console.log("=".repeat(80) + "\n");
 
   // End conversation logging session
+  console.log(`\n\x1b[1;33mDay ${day} finished — turns: ${turnCount}. Finalizing conversation and saving to DB...\x1b[0m`);
   await endConversationSession(
     finalAffect.avg_valence, 
     finalAffect.avg_stress,
@@ -675,9 +742,10 @@ async function main() {
   console.log("\x1b[1;36m🔧 Initializing NEUROFORGE-7 v2.0...\x1b[0m");
   await initializeDatabase();
   
-  // Initialize all agents
+  // Initialize all agents (verbose)
   for (const agentKey of Object.keys(agents)) {
     await initializeAgent(agentKey);
+    console.log(`\x1b[1;36mInitializing agent:\x1b[0m ${agentKey}`);
   }
 
   console.log("\x1b[1;32m✓ System ready\x1b[0m\n");

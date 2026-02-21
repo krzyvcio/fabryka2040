@@ -1,6 +1,6 @@
 // memory.ts – Build rich context for each agent
-import { getConnection } from "./db.ts";
-import { getEmotionalState, getRelation, getUnresolvedGrudges } from "./emotionEngine.ts";
+import { getConnection } from "./db.js";
+import { getEmotionalState, getRelation, getUnresolvedGrudges } from "./emotionEngine.js";
 
 export async function buildAgentContext(agentId: string, targetAgentId?: string): Promise<string> {
   const emotionalState = await getEmotionalState(agentId);
@@ -36,12 +36,12 @@ goal_alignment: ${relation.goal_alignment.toFixed(2)}
   }
 
   // Get recent messages to provide short-term memory
-  const conn = getConnection();
-  const result = await conn.run(`
-    SELECT speaker, content, timestamp FROM interaction_history 
-    ORDER BY timestamp DESC LIMIT 10
-  `);
-  const recentMessages = await result.getRowObjects() as any;
+  const conn = await getConnection();
+  const rows = await conn.query(
+    `SELECT speaker, content, timestamp FROM interaction_history ORDER BY timestamp DESC LIMIT ?`,
+    [10]
+  );
+  const recentMessages = rows as any;
 
   if (recentMessages.length > 0) {
     contextBlock += `
@@ -62,19 +62,18 @@ export async function recordInteraction(
   valence: number = 0.0,
   arousal: number = 0.0
 ) {
-  const conn = getConnection();
-  await conn.run(
+  const conn = await getConnection();
+  await conn.query(
     `INSERT INTO interaction_history (speaker, target, content, valence, arousal) VALUES (?, ?, ?, ?, ?)`,
     [speaker, target, content, valence, arousal]
   );
 }
 
 export async function getAgentMemory(agentId: string, limit: number = 5) {
-  const conn = getConnection();
-  const result = await conn.run(
+  const conn = await getConnection();
+  const rows = await conn.query(
     `SELECT content, speaker FROM interaction_history WHERE speaker = ? ORDER BY timestamp DESC LIMIT ?`,
     [agentId, limit]
   );
-  const rows = await result.getRowObjects();
   return rows as any;
 }

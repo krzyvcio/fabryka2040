@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: neuroforge-mariadb
+    restart: always
+    environment:
+      # IMPORTANT: Change these to strong, unique values for production
+      MARIADB_ROOT_PASSWORD: my_root_password
+      MARIADB_DATABASE: neuroforge_db
+      MARIADB_USER: neuroforge_user
+      MARIADB_PASSWORD: neuroforge_password
+    volumes:
+      # This will persist the database data in a local 'data' directory
+      - ./data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-pmy_root_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

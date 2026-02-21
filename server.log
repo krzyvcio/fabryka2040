@@ -1,12 +1,1 @@
-✓ DuckDB schema initialized
-✓ DuckDB schema initialized
-✓ Database initialized
-Server listening at http://127.0.0.1:3000
-
-╔════════════════════════════════════════╗
-║   🌐 NEUROFORGE-7 API Server Started   ║
-╠════════════════════════════════════════╣
-║  🔗 Web UI:  http://localhost:3000          ║
-║  📡 API:     http://localhost:3000/api/      ║
-║  💚 Health:  http://localhost:3000/api/health║
-╚════════════════════════════════════════╝
+Odmowa dostępu.

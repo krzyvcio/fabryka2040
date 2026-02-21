@@ -37,3 +37,7 @@ neuroforge.d*
 
 # Ignore the 'nul' file that causes issues on Windows
 nul
+
+# MariaDB data directory
+data/
+.minimax/

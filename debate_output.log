@@ -1,0 +1,103 @@
+Connecting to LM Studio at: http://172.23.176.1:1234/v1 with model: unsloth/gpt-oss-20b
+LM Studio OpenAI client configured.
+[1;36m🔧 Initializing NEUROFORGE-7 v2.0...[0m
+[MIGRATION] Starting...
+[MIGRATION] Database up to date
+[SEED] Inserting humor templates...
+[SEED] Humor templates seeded ✓
+[1;36mInitializing agent:[0m CEO_Maja
+[1;36mInitializing agent:[0m Architekt_AI_Adam
+[1;36mInitializing agent:[0m Architekt_Elektrociała_Lena
+[1;36mInitializing agent:[0m SYNAPSA_Omega
+[1;36mInitializing agent:[0m Robot_Artemis
+[1;36mInitializing agent:[0m Robot_Boreasz
+[1;36mInitializing agent:[0m Robot_Cyra
+[1;36mInitializing agent:[0m Robot_Dexter
+[1;36mInitializing agent:[0m Operator_Michal
+[1;36mInitializing agent:[0m Inzynier_Nadia
+[1;36mInitializing agent:[0m Inzynier_Igor
+[1;36mInitializing agent:[0m Kierownik_Marek
+[1;36mInitializing agent:[0m Inż_Helena
+[1;36mInitializing agent:[0m Dr_Piotr_Materiały
+[1;36mInitializing agent:[0m Pracownik_Tomek
+[1;36mInitializing agent:[0m SYNAPSA_System
+[1;32m✓ System ready[0m
+
+[1;36m=== SYMULACJA NEUROFORGE-7 2040 (v2.0) ===[0m
+Emocje + Dynamika + DuckDB Memory
+
+Ctrl+C aby przerwać
+
+
+================================================================================
+[1;36m𝐃𝐙𝐈𝐄́𝐍 1 — Konflikt rdzenia[0m
+Temat: Aktualizacja algorytmu sterowania
+Drama Level: 0.8
+================================================================================
+
+📝 Conversation logged: conv_mlwf03dy_hjkmh6hi
+
+[1;33m▶ Inicjator: Robot_Artemis[0m
+
+[1m[1] [38;5;46mRobot_Artemis:[0m
+Proces w normie.  
+Rozbieżność 0.003 %; linia nr 3 – 99.7 % sprawności.  
+Weryfikacja algorytmu przebiegła bez alarmów.  
+Kontynuować? Dexter?
+
+
+💬 Turn 1 | Robot_Artemis:
+  Content: "Proces w normie.  
+Rozbieżność 0.003 %; linia nr 3 – 99.7 % sprawności.  
+Weryfikacja algorytmu prze..."
+  Emotion: neutral (Valence: 0.00, Stress: 0.10)
+
+[2m(wybór emocjonalny: Dr_Piotr_Materiały)[0m
+[1m[2] [38;5;105mDr_Piotr_Materiały:[0m
+
+
+
+💬 Turn 2 | Dr_Piotr_Materiały:
+  Content: ""
+  Emotion: neutral (Valence: 0.00, Stress: 0.00)
+
+[2m(wybór emocjonalny: Kierownik_Marek)[0m
+[1m[3] [38;5;202mKierownik_Marek:[0m
+Rozbieżność 0.003 % – w granicach tolerancji.  
+Zatwierdzam aktualizację algorytmu, przeprowadzę testy na linii nr 3 o godzinie 10:00 i po pozytywnym wyniku wprowadzę pełne wdrożenie.  
+
+Czy to zgadza się z harmonogramem? Dexter?
+
+
+💬 Turn 3 | Kierownik_Marek:
+  Content: "Rozbieżność 0.003 % – w granicach tolerancji.  
+Zatwierdzam aktualizację algorytmu, przeprowadzę tes..."
+  Emotion: neutral (Valence: 1.00, Stress: 0.02)
+
+[2m(wybór emocjonalny: CEO_Maja)[0m
+[1m[4] [38;5;196mCEO_Maja:[0m
+We need respond as Maja Zielińska. Must use Polish, formal style. Provide final decision operational. Also ask question to another agent: maybe Artemis or Dexter. We are addressing Dex (Dexter). Already addressed him. The reply should be final but also could ask for confirmation from e.g., Cyra. But must end with a specific operational decision.
+
+Thus respond: "Zatwierdzam test w linii nr 3 o godzinie 10:00, po pomyślnym wyniku wdrożenie pełne; proszę Cyra monitorować wskaźniki jakości i raportować do końca dnia. Czy harmonogram zgodny?" Ask to Dexter? but already addressed him. Let's ask Artemis for logistical support. End with decision.Zatwierdzam wprowadzenie aktualizacji algorytmu sterowania.  
+Testy na linii nr 3 zostaną przeprowadzone o godzinie 10:00; po pozytywnym wyniku wdrożenie pełne rozpocznie z planem harmonogramu Q1‑2024.  
+
+Proszę Cyra o monitorowanie wskaźników jakości i raportowanie wyników do końca dnia, a Artemis zapewnić logistykę i dostępność linii nr 3.  
+
+Dexter, czy jest to zgodne z bieżącym harmonogramem? Jeśli tak – proszę o potwierdzenie i przygotowanie raportu A/B do jutra 08:00.  
+Artemis, czy linia nr 3 jest gotowa na testy?
+
+
+💬 Turn 4 | CEO_Maja:
+  Content: "We need respond as Maja Zielińska. Must use Polish, formal style. Provide final decision operational..."
+  Emotion: neutral (Valence: 0.00, Stress: 0.00)
+
+[2m(wybór emocjonalny: Kierownik_Marek)[0m
+[1m[5] [38;5;202mKierownik_Marek:[0m
+Błąd dla Kierownik_Marek: (conn:-1, no: 45028, SQLState: HY000) pool timeout: failed to retrieve a connection from pool after 10000ms
+    (pool connections: active=5 idle=0 limit=5)
+Kierownik: brak pełnych danych — kontynuuję obserwację i raportuję.
+
+
+[1;33m🛑 Zamykanie systemu...[0m
+✓ Database closed
+[1;32m✓ System wyłączony[0m

@@ -4,8 +4,9 @@ import {
   addConversationMessage,
   endConversation,
   setConversationContext,
-} from "./db.ts";
-import { getEmotionalState } from "./emotionEngine.ts";
+} from "./db.js";
+import { getEmotionalState } from "./emotionEngine.js";
+import { watchForDuplicates } from "./duplicateWatcher.js";
 
 interface ConversationSession {
   id: string;
@@ -100,7 +101,8 @@ export async function logMessage(
   speaker: string,
   targetAgent: string | null,
   content: string,
-  turnNumber: number
+  turnNumber: number,
+  maxVerboseMessages: number = 5000 // New parameter for verbose limit
 ): Promise<void> {
   if (!currentSession) {
     console.warn("⚠️ No active conversation session to log message");
@@ -124,6 +126,15 @@ export async function logMessage(
   currentSession.messages.push(message);
   currentSession.turnCount = turnNumber;
 
+  // Verbose output to terminal for the first `maxVerboseMessages` messages
+  if (turnNumber <= maxVerboseMessages) {
+    console.log(`
+💬 Turn ${turnNumber} | ${speaker}${targetAgent ? ` -> ${targetAgent}` : ""}:
+  Content: "${content.substring(0, 100)}${content.length > 100 ? "..." : ""}"
+  Emotion: ${emotionalState.emotion} (Valence: ${emotionalState.valence.toFixed(2)}, Stress: ${emotionalState.stress.toFixed(2)})
+`);
+  }
+
   // Check for conflict emotions
   if (
     emotionalState.emotion === "angry" ||
@@ -133,7 +144,7 @@ export async function logMessage(
   }
 
   // Save to database
-  await addConversationMessage(
+  const messageId = await addConversationMessage(
     currentSession.id,
     turnNumber,
     speaker,
@@ -146,6 +157,10 @@ export async function logMessage(
       stress: emotionalState.stress,
     }
   );
+
+  // Trigger duplicate watcher (async, non-blocking)
+  watchForDuplicates(messageId, speaker, content, 'conversation', currentSession.id)
+    .catch(err => console.warn('[DuplicateWatcher] Non-fatal:', err));
 }
 
 export async function endConversationSession(

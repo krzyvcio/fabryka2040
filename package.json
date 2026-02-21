@@ -3,20 +3,29 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "nodemon --watch server.ts --watch api.ts --watch db.ts --ext ts,js --exec tsx server.ts",
     "api": "tsx server.ts",
+    "check": "node scripts/check-server.js",
+    "start": "start-system.bat",
+    "reset:chat": "npx ts-node scripts\\resetMessages.ts",
     "debate": "tsx neuroforge-debate.ts",
     "build": "tsc"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
-    "@duckdb/node-api": "1.4.4-r.1",
-    "ai": "^4.0.0",
-    "express": "^5.0.0"
+    "ai": "^6.0.89",
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0",
+    "mariadb": "^3.4.5",
+    "openai": "^6.22.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.0.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/sqlite3": "^3.1.11",
+    "nodemon": "^3.1.11",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
