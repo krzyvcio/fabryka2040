@@ -41,3 +41,4 @@ nul
 # MariaDB data directory
 data/
 .minimax/
+.server.lock

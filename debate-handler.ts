@@ -51,7 +51,7 @@ import {
 } from "./responseLength.js";
 
 const LMSTUDIO_URL = "http://localhost:1234/v1";
-const DEFAULT_MODEL = "qed-nano";
+const DEFAULT_MODEL = "unsloth/gpt-oss-20b";
 
 // Keep AI SDK for other parts if needed, but we'll use openaiDirect for agents
 const openaiSDK = createOpenAI({

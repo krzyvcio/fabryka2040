@@ -14,7 +14,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 const LMSTUDIO_URL = "http://localhost:1234/v1";
-const REASONER_MODEL = "qed-nano";
+const REASONER_MODEL = "unsloth/gpt-oss-20b";
 
 const openai = createOpenAI({
   baseURL: LMSTUDIO_URL,

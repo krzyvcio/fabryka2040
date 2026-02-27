@@ -9,7 +9,7 @@ import path from "path";
 // LM Studio OpenAI client (używa OpenAI SDK bezpośrednio)
 const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
-const DEFAULT_MODEL = "qed-nano";
+const DEFAULT_MODEL = "unsloth/gpt-oss-20b";
 
 // Module imports
 import { initializeDatabase, closeDatabase } from "./db.js";
@@ -424,7 +424,7 @@ const schemas: Schema[] = [
 ];
 
 // ===== CONFIG =====
-const REASONER_MODEL = "qed-nano";
+const REASONER_MODEL = "unsloth/gpt-oss-20b";
 const DRAMA_LEVEL = 0.8; // 0-1: frequency of conflicts and events
 const MAX_TURNS_PER_DAY = 120; // Extended from 15 to support 100-200 turn conversations
 const EVENT_INTERVAL = 8; // Generate event every N turns

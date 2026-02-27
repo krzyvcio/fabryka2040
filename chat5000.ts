@@ -10,7 +10,7 @@ const openai = new OpenAI({
   apiKey: "lm-studio",
 });
 
-const MODEL = "qed-nano";
+const MODEL = "unsloth/gpt-oss-20b";
 const TOTAL_MESSAGES = 5000;
 const SHORT_TERM_MEMORY = 15;
 const LONG_TERM_MEMORY = 10;

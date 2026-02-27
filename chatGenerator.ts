@@ -5,7 +5,7 @@ import { watchForDuplicates } from "./duplicateWatcher.js";
 
 const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
-const MODEL = "qed-nano";
+const MODEL = "unsloth/gpt-oss-20b";
 
 let messageQueue: (() => Promise<void>)[] = [];
 let isProcessingQueue = false;
@@ -153,7 +153,7 @@ ${longMemory.length > 0 ? `\nPamiętasz: ${longMemory.slice(0, 3).map(m => m.con
           { role: "user", content: contextMsg }
         ],
         temperature: temperature,
-        max_tokens: Math.min(maxTokens, 800), // qed-nano stabilization
+        max_tokens: Math.min(maxTokens, 800), // unsloth/gpt-oss-20b stabilization
       }, { timeout: 45000 }); // 45s timeout for local models
 
       const text = response.choices[0]?.message?.content?.trim() || "";

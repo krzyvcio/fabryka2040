@@ -4,7 +4,7 @@ import { getDatabase } from "./db.js";
 import * as mariadb from "mariadb";
 
 const LMSTUDIO_URL = "http://localhost:1234/v1";
-const REASONER_MODEL = "qed-nano";
+const REASONER_MODEL = "unsloth/gpt-oss-20b";
 
 console.log(`Connecting to LM Studio at: ${LMSTUDIO_URL} with model: ${REASONER_MODEL}`);
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });

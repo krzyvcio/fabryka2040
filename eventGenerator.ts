@@ -9,7 +9,7 @@ const openai = createOpenAI({
   apiKey: "lm-studio",
 });
 
-const REASONER_MODEL = "qed-nano";
+const REASONER_MODEL = "unsloth/gpt-oss-20b";
 
 export interface FactoryEvent {
   description: string;
