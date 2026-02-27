@@ -3,8 +3,8 @@ import OpenAI from "openai";
 import { getDatabase } from "./db.js";
 import * as mariadb from "mariadb";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
-const REASONER_MODEL = "unsloth/gpt-oss-20b";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
+const REASONER_MODEL = "qed-nano";
 
 console.log(`Connecting to LM Studio at: ${LMSTUDIO_URL} with model: ${REASONER_MODEL}`);
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
@@ -259,7 +259,7 @@ export async function calculateGroupAffect(): Promise<{ avg_valence: number; avg
       SELECT AVG(valence) as avg_valence, AVG(stress) as avg_stress
       FROM agents_emotion
     `);
-    
+
     return (rows[0] as any) || { avg_valence: 0.0, avg_stress: 0.0 };
   } finally {
     if (conn) conn.release();
@@ -272,7 +272,7 @@ export async function recordEmotionHistory(): Promise<void> {
   try {
     conn = await pool.getConnection();
     const agents = await conn.query(`SELECT agent_id, valence, arousal, stress, mood_valence, mood_arousal FROM agents_emotion`);
-    
+
     for (const agent of (agents as any[])) {
       await conn.query(
         `INSERT INTO emotion_history (agent_id, valence, arousal, stress, mood_valence, mood_arousal) VALUES (?, ?, ?, ?, ?, ?)`,

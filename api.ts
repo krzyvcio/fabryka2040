@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction, Router } from "express";
 import { initializeDatabase, closeDatabase, getConversations, getConversationById, getConversationMessages, getConversationContext, getRecentMessages, getAgentLongTermMemory, getMessageCount, getConnection, getWatcherStats, getRecentInterventions } from "./db.js";
 import { generateNextMessage, getChatStats, initChatAgents } from "./chatGenerator.js";
 import "./emotionEngine.js";
-import { runDebateDay } from "./debate-handler.js";
+import { runDebateDay, isDebateRunning } from "./debate-handler.js";
 import { seedPromptTemplates } from "./promptTemplates.js";
 
 import { getPersonality, getAllPersonalities } from "./personalityEngine.js";
@@ -37,6 +37,9 @@ function getQueryParam(req: Request, param: string): string {
 function convertToJSON(obj: any): any {
   if (typeof obj === "bigint") {
     return Number(obj);
+  }
+  if (obj instanceof Date) {
+    return obj.toISOString();
   }
   if (obj !== null && typeof obj === "object") {
     if (Array.isArray(obj)) {
@@ -125,24 +128,23 @@ apiRouter.get("/conversations/:id/context", async (req: Request, res: Response) 
 
 apiRouter.post("/debates/start", async (req: Request, res: Response) => {
   try {
-    console.log("\n🎬 Starting new debate session from API...");
+    if (isDebateRunning()) {
+      res.json({ status: "already_running" });
+      return;
+    }
 
-    // Run debate and wait for completion
-    const result = await runDebateDay();
-    
-    console.log("✅ Debate finished:", result.message);
+    console.log("\n🎬 Starting new debate session from API (Asynchronous)...");
+
+    // Non-blocking call
+    runDebateDay().catch(err => console.error("Debate Background Error:", err));
 
     res.json({
-      status: "completed",
-      ...result,
+      status: "started",
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error("Error running debate:", error);
-    res.status(500).json({
-      error: "Failed to run debate",
-      message: (error as Error).message
-    });
+    res.status(500).json({ error: "Failed to run debate", message: (error as Error).message });
   }
 });
 
@@ -422,15 +424,30 @@ apiRouter.post("/chat/generate", async (req: Request, res: Response) => {
     const queryCount = getQueryParam(req, "count");
     const count = parseInt(bodyCount || queryCount || "1");
     const results: string[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       chatTurnCount++;
       const msg = await generateNextMessage(chatTurnCount);
       if (msg) results.push(msg);
       await new Promise(r => setTimeout(r, 500));
     }
-    
+
     res.json({ success: true, generated: results.length, messages: results, turn: chatTurnCount });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.get("/system/status", async (req: Request, res: Response) => {
+  try {
+    const chatStats = await getChatStats();
+    res.json({
+      debateActive: isDebateRunning(),
+      chatRunning: chatRunning,
+      chatTurn: chatTurnCount,
+      chatCount: chatStats.count,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -453,7 +470,7 @@ apiRouter.post("/chat/start", async (req: Request, res: Response) => {
     }
     chatRunning = true;
     const targetMessages = parseInt(getQueryParam(req, "target") || "100") || 100;
-    
+
     (async () => {
       while (chatTurnCount < targetMessages && chatRunning) {
         chatTurnCount++;
@@ -464,7 +481,7 @@ apiRouter.post("/chat/start", async (req: Request, res: Response) => {
       chatRunning = false;
       console.log(`✓ Zakończono generowanie ${chatTurnCount} wiadomości`);
     })();
-    
+
     res.json({ status: "started", target: targetMessages });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

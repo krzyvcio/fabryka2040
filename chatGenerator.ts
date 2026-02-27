@@ -3,9 +3,9 @@ import OpenAI from "openai";
 import { getRecentMessages, addChatMessage, saveChatMemory, getAgentLongTermMemory, getMessageCount, registerChatAgent } from "./db.js";
 import { watchForDuplicates } from "./duplicateWatcher.js";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
-const MODEL = "unsloth/gpt-oss-20b";
+const MODEL = "qed-nano";
 
 let messageQueue: (() => Promise<void>)[] = [];
 let isProcessingQueue = false;
@@ -40,7 +40,7 @@ function isRepetitive(agentId: string, text: string): boolean {
   const phrases = usedPhrases.get(agentId)!;
   const normalized = text.toLowerCase().replace(/[.,!?;:"']/g, "").replace(/\s+/g, " ").trim();
   const words = normalized.split(" ").filter(w => w.length > 4);
-  
+
   for (const phrase of phrases) {
     if (normalized.includes(phrase)) return true;
   }
@@ -87,33 +87,39 @@ export async function generateNextMessage(turn: number): Promise<string | null> 
         reject(err);
       }
     });
-    
+
     processQueue();
   });
 }
 
 async function processQueue(): Promise<void> {
   if (processingLock || messageQueue.length === 0) return;
-  
+
   processingLock = true;
-  
-  while (messageQueue.length > 0) {
-    const fn = messageQueue.shift();
-    if (fn) {
-      await fn();
-      await new Promise(r => setTimeout(r, 500));
+
+  try {
+    while (messageQueue.length > 0) {
+      const fn = messageQueue.shift();
+      if (fn) {
+        try {
+          await fn();
+        } catch (err) {
+          console.error("[ChatQueue] Runtime error in task:", err);
+        }
+        await new Promise(r => setTimeout(r, 800));
+      }
     }
+  } finally {
+    processingLock = false;
   }
-  
-  processingLock = false;
 }
 
 async function generateMessageInternal(turn: number): Promise<string | null> {
   const agent = agents[(turn - 1) % agents.length];
-  
+
   const recentMessages = await getRecentMessages(SHORT_TERM);
   const longMemory = await getAgentLongTermMemory(agent.id, LONG_TERM);
-  
+
   const systemPrompt = `Jesteś ${agent.name}. ${agent.persona}
 Twoja rola: ${agent.role}
 Zainteresowania: ${agent.interests.join(", ")}
@@ -126,10 +132,10 @@ Zasady:
 3. Korzystaj z pamięci krótkotrwałej i długotrwałej.
 4. Odpowiadaj na poprzednie wypowiedzi.
 5. Zachowuj spójność z osobowością.
-${longMemory.length > 0 ? `\nPamiętasz: ${longMemory.slice(0,3).map(m => m.content.slice(0,50)).join("; ")}` : ""}`;
+${longMemory.length > 0 ? `\nPamiętasz: ${longMemory.slice(0, 3).map(m => m.content.slice(0, 50)).join("; ")}` : ""}`;
 
   const topic = topics[turn % topics.length];
-  const contextMsg = recentMessages.length > 0 
+  const contextMsg = recentMessages.length > 0
     ? `Ostatnie wiadomości:\n${recentMessages.reverse().map(m => `${m.agent_name}: ${m.content}`).join("\n")}\n\nTemat: ${topic}`
     : `Temat do dyskusji: ${topic}`;
 
@@ -139,7 +145,7 @@ ${longMemory.length > 0 ? `\nPamiętasz: ${longMemory.slice(0,3).map(m => m.cont
       // Duża losowość temperatury i długości
       const temperature = 0.7 + Math.random() * 0.5; // 0.7-1.2
       const maxTokens = 500 + Math.floor(Math.random() * 1500); // 500-2000 tokens
-      
+
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
@@ -147,8 +153,8 @@ ${longMemory.length > 0 ? `\nPamiętasz: ${longMemory.slice(0,3).map(m => m.cont
           { role: "user", content: contextMsg }
         ],
         temperature: temperature,
-        max_tokens: maxTokens,
-      });
+        max_tokens: Math.min(maxTokens, 800), // qed-nano stabilization
+      }, { timeout: 45000 }); // 45s timeout for local models
 
       const text = response.choices[0]?.message?.content?.trim() || "";
       if (text.length < 10 || isRepetitive(agent.id, text)) {

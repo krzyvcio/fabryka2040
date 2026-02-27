@@ -7,9 +7,9 @@ import fs from "node:fs/promises";
 import path from "path";
 
 // LM Studio OpenAI client (używa OpenAI SDK bezpośrednio)
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = new OpenAI({ baseURL: LMSTUDIO_URL, apiKey: "lm-studio" });
-const DEFAULT_MODEL = "unsloth/gpt-oss-20b";
+const DEFAULT_MODEL = "qed-nano";
 
 // Module imports
 import { initializeDatabase, closeDatabase } from "./db.js";
@@ -424,7 +424,7 @@ const schemas: Schema[] = [
 ];
 
 // ===== CONFIG =====
-const REASONER_MODEL = "unsloth/gpt-oss-20b";
+const REASONER_MODEL = "qed-nano";
 const DRAMA_LEVEL = 0.8; // 0-1: frequency of conflicts and events
 const MAX_TURNS_PER_DAY = 120; // Extended from 15 to support 100-200 turn conversations
 const EVENT_INTERVAL = 8; // Generate event every N turns
@@ -536,14 +536,13 @@ async function agentThinkCore(
   // Build rich emotional context
   await initializeAgent(agent.name);
   const emotionalContext = await buildAgentContext(agent.name, targetAgent);
-  
+
   // Get narrative context (temperature, maxTokens based on emotions)
   const narrativeCtx = await getNarrativeContext(agent.name, targetAgent || "SYNAPSA_Omega", DRAMA_LEVEL);
 
   // Combine system prompt with emotional state
-  const enrichedSystem = `${agent.systemPrompt}\n${emotionalContext}\n${GLOBAL_LANGUAGE_RULE}${
-    narrativeCtx.emotionalOverride ? `\n\nSpecjalna instrukcja: ${narrativeCtx.emotionalOverride}` : ""
-  }`;
+  const enrichedSystem = `${agent.systemPrompt}\n${emotionalContext}\n${GLOBAL_LANGUAGE_RULE}${narrativeCtx.emotionalOverride ? `\n\nSpecjalna instrukcja: ${narrativeCtx.emotionalOverride}` : ""
+    }`;
 
   const reasonerCandidates = [DEFAULT_MODEL];
 
@@ -670,16 +669,16 @@ async function runDay(schema: Schema) {
 
     conversation.push({ role: "assistant", content: reply });
     await appendToMarkdown(day, currentSpeaker.name, reply);
-    
+
     // Log message to conversation database
     await logMessage(currentSpeaker.name, targetAgent || null, reply, turnCount);
-    
+
     currentMessageContent = reply;
 
     // Select next speaker: prefer directly addressed, otherwise use emotional activation
     let nextSpeaker: string | null = null;
     const addressed = await getAddressedAgent(reply);
-    
+
     if (addressed && agents[addressed]) {
       nextSpeaker = addressed;
       console.log(`\x1b[2m(adresowany: ${addressed})\x1b[0m`);
@@ -699,7 +698,7 @@ async function runDay(schema: Schema) {
       console.log(`  [Severity: ${(event.severity * 100).toFixed(0)}%]\n`);
 
       await recordEvent(event);
-      
+
       const eventMessage = `Nowe zdarzenie: "${event.description}" (severity: ${event.severity.toFixed(2)}). Jak to wpływa na Twoją strategię?`;
       conversation.push({ role: "user", content: eventMessage });
       await appendToMarkdown(day, "⚡ ZDARZENIE", event.description);
@@ -728,7 +727,7 @@ async function runDay(schema: Schema) {
   // End conversation logging session
   console.log(`\n\x1b[1;33mDay ${day} finished — turns: ${turnCount}. Finalizing conversation and saving to DB...\x1b[0m`);
   await endConversationSession(
-    finalAffect.avg_valence, 
+    finalAffect.avg_valence,
     finalAffect.avg_stress,
     `Day ${day}: ${schema.name} - ${turnCount} turns`
   );
@@ -741,7 +740,7 @@ async function main() {
   // Initialize database
   console.log("\x1b[1;36m🔧 Initializing NEUROFORGE-7 v2.0...\x1b[0m");
   await initializeDatabase();
-  
+
   // Initialize all agents (verbose)
   for (const agentKey of Object.keys(agents)) {
     await initializeAgent(agentKey);

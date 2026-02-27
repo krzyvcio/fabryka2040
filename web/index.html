@@ -253,16 +253,23 @@
   </div>
 
   <div class="control-center">
-            <button id="startDebateBtn" class="btn-red-pulse">
-                      <span class="btn-red-icon">⚡</span>
-                      <span class="btn-red-text">ROZPOCZNIJ DEBATĘ</span>
-                    </button>
-            <input type="number" id="chatCountInput" class="chat-count-input" value="10" min="1" max="100" />
-            <button id="startChatBtn" class="btn-green-pulse">
-                      <span class="btn-green-icon">💬</span>
-                      <span class="btn-green-text">GENERUJ CZAT</span>
-                    </button>
-          </div>
+    <button id="unifiedStartBtn" class="btn-mega-pulse">
+      <span class="btn-mega-icon">⚡</span>
+      <span class="btn-mega-text">INITIATE NEURAL OVERRIDE</span>
+      <span class="btn-mega-sub">START ALL AGENT DISCOURSES</span>
+    </button>
+    <div class="secondary-controls hidden">
+      <button id="startDebateBtn" class="btn-red-pulse">
+        <span class="btn-red-icon">⚡</span>
+        <span class="btn-red-text">DEBATA</span>
+      </button>
+      <input type="number" id="chatCountInput" class="chat-count-input" value="10" min="1" max="100" />
+      <button id="startChatBtn" class="btn-green-pulse">
+        <span class="btn-green-icon">💬</span>
+        <span class="btn-green-text">CZAT</span>
+      </button>
+    </div>
+  </div>
 
   <script src="/web/app.js"></script>
 </body>

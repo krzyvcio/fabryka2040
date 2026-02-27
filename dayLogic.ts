@@ -33,8 +33,8 @@ export function checkCEOEnding(lastSpeaker: string, messageCount: number = 0): {
   shouldEnd: boolean;
   reason: string;
 } {
-  // Only end day if CEO has spoken at least 3 times and speaks last
-  if (lastSpeaker === "Kierownik_Marek" && messageCount >= 3) {
+  // Only end day if CEO has spoken at least 20 times total (to allow long debates)
+  if (lastSpeaker === "Kierownik_Marek" && messageCount >= 20) {
     return {
       shouldEnd: true,
       reason:

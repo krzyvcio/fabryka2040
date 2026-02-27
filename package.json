@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch server.ts --watch api.ts --watch db.ts --ext ts,js --exec tsx server.ts",
+    "dev": "nodemon --ext ts,js --exec tsx server.ts",
     "api": "tsx server.ts",
     "check": "node scripts/check-server.js",
     "start": "start-system.bat",

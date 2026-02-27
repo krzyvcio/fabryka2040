@@ -4,7 +4,7 @@
 import OpenAI from "openai";
 import { initializeDatabase, closeDatabase, registerChatAgent, addChatMessage, getRecentMessages, saveChatMemory, getAgentLongTermMemory } from "./db.js";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = new OpenAI({
   baseURL: LMSTUDIO_URL,
   apiKey: "lm-studio",
@@ -32,7 +32,7 @@ const agents = [
     style: "Poetyckie, metaforyczne wypowiedzi. Łączy pozornie niepowiązane tematy.",
     role: "Filozof",
     interests: ["sztuka", "metafory", "etyka", "sens życia"],
-    priorities:["głębia", "inspiracja", "nowe perspektywy"],
+    priorities: ["głębia", "inspiracja", "nowe perspektywy"],
   },
   {
     id: "agent_gamma",
@@ -67,14 +67,14 @@ function normalizeText(text: string): string {
 function isRepetitive(agentId: string, text: string): boolean {
   const normalized = normalizeText(text);
   const phrases = usedPhrases.get(agentId)!;
-  
+
   const words = normalized.split(" ").filter(w => w.length > 4);
   for (const phrase of phrases) {
     if (normalized.includes(phrase) || phrase.includes(normalized)) {
       return true;
     }
   }
-  
+
   if (words.length > 3) {
     const key = words.slice(0, 4).join(" ");
     if (phrases.has(key)) {
@@ -82,14 +82,14 @@ function isRepetitive(agentId: string, text: string): boolean {
     }
     phrases.add(key);
   }
-  
+
   return false;
 }
 
 function extractFacts(text: string, turn: number, agentId: string): { type: string; content: string }[] {
   const facts: { type: string; content: string }[] = [];
   const lower = text.toLowerCase();
-  
+
   if (lower.includes("uważam") || lower.includes("myślę") || lower.includes("przekonany")) {
     facts.push({ type: "opinion", content: text.slice(0, 200) });
   }
@@ -102,14 +102,14 @@ function extractFacts(text: string, turn: number, agentId: string): { type: stri
   if (lower.includes("wnioskuję") || lower.includes("dlatego") || lower.includes("więc")) {
     facts.push({ type: "conclusion", content: text.slice(0, 200) });
   }
-  
+
   return facts;
 }
 
 function buildSystemPrompt(agent: typeof agents[0], shortMemory: any[], longMemory: any[]): string {
   const topics = agent.interests.join(", ");
   const priorities = agent.priorities.join(", ");
-  
+
   let prompt = `Jesteś agentem konwersacyjnym o imieniu ${agent.name}.
 Twoja osobowość: ${agent.persona}
 Twoja rola: ${agent.role}
@@ -139,7 +139,7 @@ Zasady:
 
 function buildContext(shortMemory: any[]): Message[] {
   const messages: Message[] = [];
-  
+
   if (shortMemory.length > 0) {
     messages.push({
       role: "user",
@@ -147,14 +147,14 @@ function buildContext(shortMemory: any[]): Message[] {
         shortMemory.reverse().map(m => `${m.agent_name}: ${m.content}`).join("\n")
     });
   }
-  
+
   return messages;
 }
 
 async function generateMessage(agent: typeof agents[0], shortMemory: any[], longMemory: any[], turn: number): Promise<string> {
   const systemPrompt = buildSystemPrompt(agent, shortMemory, longMemory);
   const context = buildContext(shortMemory);
-  
+
   const topics = [
     "co myślisz o naturze rzeczywistości?",
     "jak możemy ulepszyć komunikację?",
@@ -167,7 +167,7 @@ async function generateMessage(agent: typeof agents[0], shortMemory: any[], long
     "jaka jest rola pytań w poznawaniu?",
     "co łączy naukę i sztukę?",
   ];
-  
+
   const topic = topics[turn % topics.length];
   context.push({
     role: "user",
@@ -176,13 +176,13 @@ async function generateMessage(agent: typeof agents[0], shortMemory: any[], long
 
   let attempts = 0;
   const maxAttempts = 3;
-  
+
   while (attempts < maxAttempts) {
     try {
       console.log(`  [${agent.name} myśli...]`);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
-      
+
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [{ role: "system", content: systemPrompt }, ...context],
@@ -192,18 +192,18 @@ async function generateMessage(agent: typeof agents[0], shortMemory: any[], long
 
       clearTimeout(timeout);
       const text = response.choices[0]?.message?.content?.trim() || "";
-      
+
       if (text.length < 10) {
         attempts++;
         continue;
       }
-      
+
       if (isRepetitive(agent.id, text)) {
         console.log(`  [POWTÓRZENIE WYKRYTE - próba ${attempts + 1}]`);
         attempts++;
         continue;
       }
-      
+
       return text;
     } catch (err) {
       console.error(`  Błąd generowania: ${err}`);
@@ -211,13 +211,13 @@ async function generateMessage(agent: typeof agents[0], shortMemory: any[], long
       await new Promise(r => setTimeout(r, 1000));
     }
   }
-  
+
   return `[${agent.name} się zawahał i milknie na chwilę]`;
 }
 
 async function processFacts(agentId: string, content: string, turn: number) {
   const facts = extractFacts(content, turn, agentId);
-  
+
   for (const fact of facts) {
     await saveChatMemory(agentId, fact.type, fact.content, turn, 0.7);
   }
@@ -225,10 +225,10 @@ async function processFacts(agentId: string, content: string, turn: number) {
 
 async function run() {
   console.log("🚀 Inicjalizacja systemu czatu 5000 wiadomości...\n");
-  
+
   await initializeDatabase();
   initAgentTracking();
-  
+
   for (const agent of agents) {
     await registerChatAgent(
       agent.id,
@@ -241,45 +241,45 @@ async function run() {
     );
     console.log(`✓ Zarejestrowano agenta: ${agent.name}`);
   }
-  
+
   console.log(`\n📊 Cel: ${TOTAL_MESSAGES} wiadomości\n`);
-  
+
   const startTime = Date.now();
   let lastProgress = 0;
-  
+
   for (let turn = 1; turn <= TOTAL_MESSAGES; turn++) {
     const agentIndex = (turn - 1) % agents.length;
     const agent = agents[agentIndex];
-    
+
     const recentMessages = await getRecentMessages(SHORT_TERM_MEMORY);
     const longMemory = await getAgentLongTermMemory(agent.id, LONG_TERM_MEMORY);
-    
+
     const message = await generateMessage(agent, recentMessages, longMemory, turn);
-    
+
     await addChatMessage(agent.id, message, turn);
-    
+
     await processFacts(agent.id, message, turn);
-    
+
     const progress = Math.floor((turn / TOTAL_MESSAGES) * 100);
     if (progress !== lastProgress && progress % 10 === 0) {
       console.log(`📈 Postęp: ${turn}/${TOTAL_MESSAGES} (${progress}%)`);
       lastProgress = progress;
     }
-    
+
     if (turn % 50 === 0) {
       const elapsed = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
       const rate = (turn / ((Date.now() - startTime) / 1000)).toFixed(1);
       console.log(`  ⏱️ Czas: ${elapsed} min | Prędkość: ${rate} msg/s`);
     }
-    
+
     await new Promise(r => setTimeout(r, 100));
   }
-  
+
   const totalTime = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
   console.log(`\n✅ UKOŃCZONO!`);
   console.log(`   Wiadomości: ${TOTAL_MESSAGES}`);
   console.log(`   Czas: ${totalTime} minut`);
-  
+
   await closeDatabase();
   process.exit(0);
 }

@@ -9,8 +9,8 @@ let isConversationListLocked = false;
 let debateInProgress = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-  debateStartTime = Date.now();
-  isConversationListLocked = false; // Odblokowane od początku
+  isConversationListLocked = false;
+  checkSystemStatus();
 
   // Załaduj aktywną debatę od razu
   refreshConversations().then(() => {
@@ -22,16 +22,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   refreshChatMessages();
   setupSearchFilter();
-  setupStartAgentsButton();
+  setupUnifiedStart();
   updateTime();
 
-  // Timer wyłączony - archiwum zawsze odblokowane
-  // startLockdownTimer(15 * 60);
+  // Archiwum zawsze odblokowane
+
 
   setInterval(updateTime, 1000);
   setInterval(refreshConversations, 5000);
   setInterval(refreshChatMessages, 3000);
   setInterval(updateSystemDashboard, 5000);
+  setInterval(checkSystemStatus, 5000);
   initEffects();
   initSystemDashboard();
 });
@@ -42,22 +43,60 @@ let chatOffset = 0;
 let chatHasMore = true;
 let chatLoading = false;
 
+async function checkSystemStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/system/status`);
+    if (!res.ok) return;
+    const status = await res.json();
+
+    const wasActive = debateInProgress;
+    debateInProgress = status.debateActive || status.chatRunning;
+
+    // Auto-refresh chat if status changed from inactive to active
+    if (!wasActive && debateInProgress) {
+      refreshChatMessages();
+    }
+
+    const unifiedBtn = document.getElementById("unifiedStartBtn");
+    if (unifiedBtn) {
+      const btnText = unifiedBtn.querySelector(".btn-mega-text");
+      if (debateInProgress) {
+        if (status.debateActive && status.chatRunning) {
+          btnText.textContent = "SYSTEM ACTIVE";
+        } else if (status.debateActive) {
+          btnText.textContent = "DEBATE IN PROGRESS";
+        } else {
+          btnText.textContent = "CHAT GENERATING";
+        }
+        unifiedBtn.classList.add("is-active");
+        unifiedBtn.setAttribute("disabled", "true");
+      } else {
+        btnText.textContent = "INITIATE NEURAL OVERRIDE";
+        unifiedBtn.classList.remove("is-active", "is-loading");
+        unifiedBtn.removeAttribute("disabled");
+      }
+    }
+  } catch (e) {
+    console.error("Status check failed", e);
+  }
+}
+
 async function refreshChatMessages() {
   try {
     const statusRes = await fetch(`${API_BASE}/chat/status`);
     if (!statusRes.ok) return;
-    
+
     const status = await statusRes.json();
     const totalCount = status.count;
-    
+
     // Check if new messages exist
     const messagesRes = await fetch(`${API_BASE}/chat/messages?limit=30&offset=0`);
     if (!messagesRes.ok) return;
-    
+
     const messages = await messagesRes.json();
-    
-    // Only update if there are new messages
-    if (messages.length !== chatMessages.length) {
+
+    // Only update if there are new messages or count changed
+    if (messages.length !== chatMessages.length || (messages.length > 0 && chatMessages.length > 0 && messages[0].id !== chatMessages[0].id)) {
       chatMessages = messages;
       chatOffset = messages.length;
       chatHasMore = messages.length >= 30 && messages.length < totalCount;
@@ -70,16 +109,16 @@ async function refreshChatMessages() {
 
 async function loadMoreChatMessages() {
   if (chatLoading || !chatHasMore) return;
-  
+
   chatLoading = true;
   try {
     const statusRes = await fetch(`${API_BASE}/chat/status`);
     const status = await statusRes.json();
     const totalCount = status.count;
-    
+
     const messagesRes = await fetch(`${API_BASE}/chat/messages?limit=30&offset=${chatOffset}`);
     const messages = await messagesRes.json();
-    
+
     if (messages.length > 0) {
       chatMessages = [...messages.reverse(), ...chatMessages];
       chatOffset += messages.length;
@@ -96,9 +135,9 @@ async function loadMoreChatMessages() {
 function renderChatMessages(messages, totalCount, prepend = false) {
   const container = document.getElementById("chatViewContainer");
   if (!container) return;
-  
+
   const chatMessagesEl = container.querySelector(".chat-messages");
-  
+
   if (!messages || messages.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -108,7 +147,7 @@ function renderChatMessages(messages, totalCount, prepend = false) {
       </div>`;
     return;
   }
-  
+
   const chatHtml = messages.map(msg => `
     <div class="message-item" data-agent="${msg.agent_id}">
       <div class="message-header">
@@ -118,7 +157,7 @@ function renderChatMessages(messages, totalCount, prepend = false) {
       <div class="message-content">${msg.content}</div>
     </div>
   `).join("");
-  
+
   if (prepend && chatMessagesEl) {
     chatMessagesEl.innerHTML = chatHtml + chatMessagesEl.innerHTML;
   } else {
@@ -129,13 +168,13 @@ function renderChatMessages(messages, totalCount, prepend = false) {
       </div>
       <div class="chat-status">Łącznie: ${totalCount} wiadomości</div>
     `;
-    
+
     // Setup infinite scroll
     const trigger = document.getElementById("loadMoreTrigger");
     if (trigger) {
       trigger.addEventListener("click", loadMoreChatMessages);
     }
-    
+
     const chatList = document.getElementById("chatMessagesList");
     if (chatList) {
       chatList.addEventListener("scroll", () => {
@@ -145,45 +184,13 @@ function renderChatMessages(messages, totalCount, prepend = false) {
       });
     }
   }
-  
+
   const chatBadge = document.getElementById("conversationCount");
   if (chatBadge) chatBadge.textContent = totalCount;
 }
 
-/**
- * Timer blokady: Odblokuj listę rozmów po N sekund
- */
-function startLockdownTimer(seconds) {
-  let remaining = seconds;
+// startLockdownTimer removed
 
-  const updateLockNotice = () => {
-    const lockNotice = document.querySelector('[style*="rgba(255, 45, 106"]');
-    if (lockNotice && remaining > 0) {
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      lockNotice.innerHTML = `🔒 ARCHIWUM ZABLOKOWANE<br><span style="font-size: 10px;">${mins}:${secs.toString().padStart(2, '0')} do odblokowania</span>`;
-    }
-  };
-
-  const timer = setInterval(() => {
-    remaining--;
-    updateLockNotice();
-
-    if (remaining <= 0) {
-      clearInterval(timer);
-      isConversationListLocked = false;
-      console.log("✅ Archiwum Dyskursów odblokowane!");
-
-      // Odśwież listę bez blokady
-      refreshConversations();
-
-      // Pokaż powiadomienie
-      showDebateNotification("✅ ARCHIWUM DYSKURSÓW ODBLOKOWANE - Możesz teraz przeglądać inne debaty", "success");
-    }
-  }, 1000);
-
-  updateLockNotice(); // Inicjalna aktualizacja
-}
 
 function initSystemDashboard() {
   const dashboardTab = document.getElementById("dashboardTab");
@@ -198,13 +205,13 @@ async function updateSystemDashboard() {
     const stateRes = await fetch(`${API_BASE}/system/state`);
     const dramaRes = await fetch(`${API_BASE}/system/drama`);
     const synapsaRes = await fetch(`${API_BASE}/synapsa/metrics`);
-    
+
     if (!stateRes.ok || !dramaRes.ok || !synapsaRes.ok) return;
-    
+
     const systemState = await stateRes.json();
     const drama = await dramaRes.json();
     const synapsa = await synapsaRes.json();
-    
+
     updateSystemMetricsUI(systemState);
     updateDramaUI(drama);
     updateSynapsaUI(synapsa);
@@ -218,7 +225,7 @@ function updateSystemMetricsUI(state) {
   const stressEl = document.getElementById("sysStress");
   const entropyEl = document.getElementById("sysEntropy");
   const polarizationEl = document.getElementById("sysPolarization");
-  
+
   if (trustEl) trustEl.textContent = (state.global_trust * 100).toFixed(1) + "%";
   if (stressEl) stressEl.textContent = (state.global_stress * 100).toFixed(1) + "%";
   if (entropyEl) entropyEl.textContent = (state.entropy * 100).toFixed(1) + "%";
@@ -228,9 +235,9 @@ function updateSystemMetricsUI(state) {
 function updateDramaUI(drama) {
   const phaseEl = document.getElementById("dramaPhase");
   const indexEl = document.getElementById("dramaIndex");
-  
+
   const phaseColors = { stable: "#00ff88", tension: "#ffdd00", crisis: "#ff8800", tragedy: "#ff0044" };
-  
+
   if (phaseEl) {
     phaseEl.textContent = drama.phase.toUpperCase();
     phaseEl.style.color = phaseColors[drama.phase] || "#00ff88";
@@ -242,7 +249,7 @@ function updateSynapsaUI(metrics) {
   const autonomyEl = document.getElementById("synapsaAutonomy");
   const modeEl = document.getElementById("synapsaMode");
   const riskEl = document.getElementById("synapsaRisk");
-  
+
   if (autonomyEl) autonomyEl.textContent = (metrics.state.autonomy * 100).toFixed(1) + "%";
   if (modeEl) modeEl.textContent = metrics.state.governance_mode.toUpperCase();
   if (riskEl) riskEl.textContent = (metrics.state.survival_drive * 100).toFixed(1) + "%";
@@ -274,7 +281,7 @@ function updateTime() {
   if (timeEl) {
     timeEl.textContent = timeStr;
   }
-  
+
   const lastSyncEl = document.getElementById('lastSync');
   if (lastSyncEl) {
     const syncStr = now.toLocaleString('pl-PL');
@@ -289,9 +296,9 @@ async function refreshConversations() {
 
     allConversations = await response.json();
     renderConversationsList(allConversations);
-    
-    document.getElementById("agentCount").textContent = 
-      [...new Set(allConversations.flatMap(c => 
+
+    document.getElementById("agentCount").textContent =
+      [...new Set(allConversations.flatMap(c =>
         c.participants ? JSON.parse(c.participants) : []
       ))].length || 11;
   } catch (error) {
@@ -316,13 +323,8 @@ function renderConversationsList(conversations) {
 
   container.innerHTML = '';
 
-  // Pokaż komunikat o zablokowaniu przez pierwsze 15 minut
-  if (isConversationListLocked) {
-    const lockNotice = document.createElement('div');
-    lockNotice.style.cssText = 'padding: 12px; background: rgba(255, 45, 106, 0.1); border: 1px solid rgba(255, 45, 106, 0.3); border-radius: 4px; color: var(--text-muted); font-size: 11px; text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;';
-    lockNotice.innerHTML = '🔒 ARCHIWUM ZABLOKOWANE NA 15 MIN<br><span style="font-size: 10px;">Obserwacja bieżącej debaty...</span>';
-    container.appendChild(lockNotice);
-  }
+  container.innerHTML = '';
+
 
   conversations.forEach((conv, index) => {
     const date = new Date(conv.start_time);
@@ -340,18 +342,9 @@ function renderConversationsList(conversations) {
     itemEl.style.opacity = '0';
     itemEl.style.transform = 'translateX(-20px)';
 
-    // Blokuj klik na listę przez 15 minut
-    if (isConversationListLocked) {
-      itemEl.style.opacity = '0.5';
-      itemEl.style.cursor = 'not-allowed';
-      itemEl.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
-    } else {
-      itemEl.onclick = () => selectConversation(conv.id);
-    }
-    
+    itemEl.onclick = () => selectConversation(conv.id);
+
+
     itemEl.innerHTML = `
       <div class="conversation-title">Day ${conv.day}: ${conv.topic}</div>
       <div class="conversation-meta">
@@ -359,15 +352,14 @@ function renderConversationsList(conversations) {
       </div>
       <div class="conversation-stats">
         <span class="stat-badge">🔄 Turns: ${conv.turn_count || 0}</span>
-        <span class="stat-badge ${emotionColor}">💭 Valence: ${
-      conv.average_valence ? conv.average_valence.toFixed(2) : "N/A"
-    }</span>
+        <span class="stat-badge ${emotionColor}">💭 Valence: ${conv.average_valence ? conv.average_valence.toFixed(2) : "N/A"
+      }</span>
         ${conv.had_conflict ? '<span class="stat-badge danger">⚡ Conflict</span>' : ""}
       </div>
     `;
-    
+
     container.appendChild(itemEl);
-    
+
     setTimeout(() => {
       itemEl.style.transition = 'all 0.3s ease';
       itemEl.style.opacity = '1';
@@ -417,7 +409,7 @@ async function loadActiveDebateImmediate(conversationId) {
       panelTitle.style.textShadow = "0 0 10px rgba(255, 45, 106, 0.8)";
     }
 
-    renderChatMessages(messages);
+    renderConversationMessages(messages);
     renderContext(context, conversation);
   } catch (error) {
     console.error("Error loading active debate:", error);
@@ -431,13 +423,8 @@ async function loadActiveDebateImmediate(conversationId) {
 }
 
 async function selectConversation(conversationId) {
-  // Blokuj zmianę debaty przez pierwsze 15 minut
-  if (isConversationListLocked) {
-    console.warn("⚠️ Archiwum zablokowane. Obserwacja bieżącej debaty...");
-    return;
-  }
-
   currentConversationId = conversationId;
+
 
   document.querySelectorAll(".conversation-item").forEach((el) => {
     el.classList.remove("active");
@@ -467,7 +454,7 @@ async function selectConversation(conversationId) {
     const data = await response.json();
     const { conversation, messages, context } = data;
 
-    renderChatMessages(messages);
+    renderConversationMessages(messages);
     renderContext(context, conversation);
   } catch (error) {
     console.error("Error loading conversation details:", error);
@@ -481,7 +468,7 @@ async function selectConversation(conversationId) {
   }
 }
 
-function renderChatMessages(messages) {
+function renderConversationMessages(messages) {
   const container = document.getElementById("chatViewContainer");
 
   if (!messages || messages.length === 0) {
@@ -491,13 +478,13 @@ function renderChatMessages(messages) {
 
   container.innerHTML = '<button class="chat-close-btn" onclick="closeConversation()" style="margin-bottom:12px;padding:6px 10px;border-radius:6px;border:none;background:transparent;color:var(--text-primary);cursor:pointer;">← WYJDŹ</button><div class="messages-list"></div>';
   const messagesList = container.querySelector('.messages-list');
-  
+
   let index = 0;
   const batchSize = 5;
-  
+
   function addBatch() {
     const endIndex = Math.min(index + batchSize, messages.length);
-    
+
     for (let i = index; i < endIndex; i++) {
       const msg = messages[i];
       const emotionClass = `emotion-${msg.emotion_at_time?.toLowerCase() || "neutral"}`;
@@ -509,14 +496,14 @@ function renderChatMessages(messages) {
       msgEl.style.transform = 'translateY(20px)';
       // Click handling disabled to avoid modal locking the UI
       // msgEl.onclick = function() { showMessageDetails(this, msg); };
-      
+
       // Pełna wiadomość bez obcinania
       const tokenCount = Math.ceil(msg.content.length / 4); // Rough estimate
 
       msgEl.innerHTML = `
         <div class="message-header">
           <div>
-            <span class="message-speaker">${msg.speaker}</span>
+            <span class="message-speaker">${msg.speaker || msg.agent_name || msg.agent_id || "System"}</span>
             <span class="message-turn">#${msg.turn_number}</span>
           </div>
           <div class="message-target">
@@ -550,23 +537,23 @@ function renderChatMessages(messages) {
           </div>
         </div>
       `;
-      
+
       messagesList.appendChild(msgEl);
-      
+
       setTimeout(() => {
         msgEl.style.transition = 'all 0.3s ease';
         msgEl.style.opacity = '1';
         msgEl.style.transform = 'translateY(0)';
       }, (i - index) * 50);
     }
-    
+
     index = endIndex;
-    
+
     if (index < messages.length) {
       setTimeout(addBatch, 100);
     }
   }
-  
+
   addBatch();
 }
 
@@ -578,7 +565,7 @@ function renderContext(context, conversation) {
   const stress = conversation.average_stress || 0;
   const leftPos = 50 + (valence * 40);
   const topPos = 50 - (stress * 40);
-  
+
   if (emotionPoint) {
     emotionPoint.style.left = `${leftPos}%`;
     emotionPoint.style.top = `${topPos}%`;
@@ -757,140 +744,64 @@ function setupSearchFilter() {
   });
 }
 
-function setupStartAgentsButton() {
-  const button = document.getElementById("startDebateBtn");
-  if (!button) return;
+async function startSystemUnified() {
+  if (debateInProgress) return;
+  debateInProgress = true;
 
-  const textEl = button.querySelector(".btn-red-text");
-  const iconEl = button.querySelector(".btn-red-icon");
-  button.setAttribute("aria-pressed", "false");
-
-  button.addEventListener("click", async () => {
-    // Prevent multiple concurrent debates (no forking)
-    if (debateInProgress) {
-      console.warn("⚠️ Debate already in progress. Cannot start another.");
-      return;
-    }
-
-    debateInProgress = true;
-    button.classList.add("is-loading");
-    button.setAttribute("disabled", "true");
-
-    if (textEl) {
-      textEl.textContent = "INICJALIZACJA...";
-    }
-    if (iconEl) {
-      iconEl.textContent = "⚡";
-    }
-
-    console.log("📤 Sending debate start request to API...");
-
-    try {
-      const response = await fetch(`${API_BASE}/debates/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("✅ Debate started:", data);
-
-      // Show empty chat with "Waiting for messages..." state
-      const chatContainer = document.getElementById("chatViewContainer");
-      chatContainer.innerHTML = `
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">OCZEKIWANIE NA PIERWSZĄ WIADOMOŚĆ...</div>
-        </div>
-      `;
-
-      // Show success feedback
-      showDebateNotification("💬 Debata rozpoczęta! Czekanie na wiadomości...", "success");
-
-      // Restart 15-minute lockdown from button click
-      debateStartTime = Date.now();
-      isConversationListLocked = true;
-      startLockdownTimer(15 * 60);
-
-      // Keep button permanently disabled during debate (no reset)
-      button.classList.add("is-active");
-      button.setAttribute("aria-pressed", "true");
-      if (textEl) {
-        textEl.textContent = "DEBATA W TOKU...";
-      }
-
-      console.log("⏳ Messages will stream in as they're generated. Polling every 3 seconds.");
-      // Note: refreshChatMessages() already runs every 3 seconds and will update the chat view
-      // as new messages arrive
-    } catch (error) {
-      console.error("❌ Error starting debate:", error);
-      debateInProgress = false;
-      button.classList.remove("is-loading");
-      button.removeAttribute("disabled");
-      if (textEl) {
-        textEl.textContent = "BŁĄD - SPRÓBUJ PONOWNIE";
-      }
-      showDebateNotification(`❌ Błąd: ${error.message}`, "error");
-
-      // Reset button text after 3 seconds
-      setTimeout(() => {
-        if (textEl) {
-          textEl.textContent = "ROZPOCZNIJ DEBATĘ";
-        }
-      }, 3000);
-    }
-  });
-
-  // Chat generator button
-  const chatBtn = document.getElementById("startChatBtn");
-  if (chatBtn) {
-    const chatTextEl = chatBtn.querySelector(".btn-green-text");
-    const chatIconEl = chatBtn.querySelector(".btn-green-icon");
-    
-    chatBtn.addEventListener("click", async () => {
-      const countInput = document.getElementById("chatCountInput");
-      const count = countInput ? parseInt(countInput.value) || 10 : 10;
-      
-      chatBtn.classList.add("is-loading");
-      chatBtn.setAttribute("disabled", "true");
-      if (chatTextEl) chatTextEl.textContent = "GENEROWANIE...";
-      
-      try {
-        const response = await fetch(`${API_BASE}/chat/generate`, { 
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ count })
-        });
-        const data = await response.json();
-        
-        showDebateNotification(`💬 Wygenerowano ${data.generated} wiadomości!`, "success");
-        
-        chatBtn.classList.add("is-active");
-        if (chatTextEl) chatTextEl.textContent = `WYKONANO (${data.turn})`;
-        
-        setTimeout(() => {
-          chatBtn.classList.remove("is-loading", "is-active");
-          chatBtn.removeAttribute("disabled");
-          if (chatTextEl) chatTextEl.textContent = "GENERUJ CZAT";
-        }, 3000);
-        
-        refreshChatMessages();
-      } catch (error) {
-        chatBtn.classList.remove("is-loading");
-        chatBtn.removeAttribute("disabled");
-        if (chatTextEl) chatTextEl.textContent = "BŁĄD";
-        showDebateNotification(`❌ Błąd: ${error.message}`, "error");
-      }
-    });
+  const unifiedBtn = document.getElementById("unifiedStartBtn");
+  if (unifiedBtn) {
+    unifiedBtn.classList.add("is-loading");
+    unifiedBtn.querySelector(".btn-mega-text").textContent = "SYNCHRONIZING...";
+    unifiedBtn.setAttribute("disabled", "true");
   }
+
+  showDebateNotification("🚀 Inicjalizacja całego systemu...", "success");
+
+  try {
+    // 1. Start Debate
+    const debatePromise = fetch(`${API_BASE}/debates/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timestamp: new Date().toISOString() })
+    });
+
+    // 2. Start Chat Generation (target 50 messages)
+    const chatPromise = fetch(`${API_BASE}/chat/start?target=50`, {
+      method: "POST"
+    });
+
+    // We don't necessarily await them if they are long running, but the API handles them
+    const [debateRes, chatRes] = await Promise.all([debatePromise, chatPromise]);
+
+    if (unifiedBtn) {
+      unifiedBtn.querySelector(".btn-mega-text").textContent = "SYSTEM ACTIVE";
+      unifiedBtn.classList.remove("is-loading");
+      unifiedBtn.classList.add("is-active");
+    }
+
+    showDebateNotification("✅ System w pełni aktywny: Debata i Czat ruszyły!", "success");
+
+
+  } catch (error) {
+    console.error("System start error:", error);
+    if (unifiedBtn) {
+      unifiedBtn.classList.remove("is-loading");
+      unifiedBtn.removeAttribute("disabled");
+      unifiedBtn.querySelector(".btn-mega-text").textContent = "RETRY OVERRIDE";
+    }
+    showDebateNotification(`❌ Błąd startu: ${error.message}`, "error");
+    debateInProgress = false;
+  }
+}
+
+function setupUnifiedStart() {
+  const unifiedBtn = document.getElementById("unifiedStartBtn");
+  const debateBtn = document.getElementById("startDebateBtn");
+  const chatBtn = document.getElementById("startChatBtn");
+
+  if (unifiedBtn) unifiedBtn.addEventListener("click", startSystemUnified);
+  if (debateBtn) debateBtn.addEventListener("click", startSystemUnified);
+  if (chatBtn) chatBtn.addEventListener("click", startSystemUnified);
 }
 
 function showDebateNotification(message, type) {
@@ -936,7 +847,7 @@ async function initEmotionChart() {
   if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
-  
+
   const initialData = {
     labels: [],
     datasets: [
@@ -1009,7 +920,7 @@ async function updateEmotionChart() {
     if (!emotionChart || history.length === 0) return;
 
     const agents = [...new Set(history.map(h => h.agent_id))];
-    const labels = history.filter(h => h.agent_id === agents[0]).map(h => 
+    const labels = history.filter(h => h.agent_id === agents[0]).map(h =>
       new Date(h.ts).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
     ).reverse();
 
@@ -1052,14 +963,14 @@ async function updateStressHeatmap() {
     const timePoints = [...new Set(history.map(h => new Date(h.ts).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })))].reverse();
 
     let html = '';
-    
+
     agents.forEach(agent => {
       html += `<div class="heatmap-row">`;
       html += `<span class="heatmap-label">${agent.substring(0, 12)}</span>`;
       html += `<div class="heatmap-cells">`;
-      
+
       const agentData = history.filter(h => h.agent_id === agent).reverse();
-      
+
       timePoints.forEach((time, idx) => {
         const dataPoint = agentData[idx];
         if (dataPoint) {
@@ -1070,7 +981,7 @@ async function updateStressHeatmap() {
           html += `<div class="heatmap-cell" style="background: var(--bg-surface);">--</div>`;
         }
       });
-      
+
       html += `</div></div>`;
     });
 
@@ -1103,7 +1014,7 @@ async function updateRelationGraph() {
     }
 
     const nodes = [...new Set(relations.flatMap(r => [r.agent_id, r.target_id]))];
-    
+
     const nodeData = nodes.map(id => ({
       id: id,
       group: id.includes('SYNAPSA') ? 'system' : id.includes('Robot') ? 'robot' : 'human'
@@ -1152,7 +1063,7 @@ async function updateRelationGraph() {
         .on('end', dragended));
 
     const colors = { human: '#00f0ff', robot: '#a855f7', system: '#00ffa3' };
-    
+
     node.append('circle')
       .attr('r', d => d.group === 'system' ? 12 : 8)
       .attr('fill', d => colors[d.group] || '#00f0ff');

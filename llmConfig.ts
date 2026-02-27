@@ -28,14 +28,14 @@ export const LLM_PARAM_RANGES = {
 
 // Konfiguracja dla różnych modeli
 export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
-  // Ludzie - Qwen3 preferowany (naturalny język)
+  // Ludzie - QED-Nano preferowany (naturalny język)
   CEO_Maja: {
     agentId: 'CEO_Maja',
     baseTemperature: 0.85,
     temperatureVariance: 0.1,
     baseTopP: 0.9,
     topPVariance: 0.05,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.4,
     consistencyWeight: 0.7,
   },
@@ -45,7 +45,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.15,
     baseTopP: 0.88,
     topPVariance: 0.07,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.7,
     consistencyWeight: 0.5,
   },
@@ -55,7 +55,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.12,
     baseTopP: 0.92,
     topPVariance: 0.03,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.5,
     consistencyWeight: 0.6,
   },
@@ -65,7 +65,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.08,
     baseTopP: 0.93,
     topPVariance: 0.02,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.3,
     consistencyWeight: 0.8,
   },
@@ -75,7 +75,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.1,
     baseTopP: 0.89,
     topPVariance: 0.06,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.6,
     consistencyWeight: 0.55,
   },
@@ -85,19 +85,19 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.11,
     baseTopP: 0.91,
     topPVariance: 0.04,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.45,
     consistencyWeight: 0.65,
   },
-  
-  // Roboty - Gemma/QED mogą być lepsze (krótsze, bardziej techniczne)
+
+  // Roboty - QED-Nano
   Robot_Artemis: {
     agentId: 'Robot_Artemis',
     baseTemperature: 0.7,
     temperatureVariance: 0.05,
     baseTopP: 0.95,
     topPVariance: 0.02,
-    preferredModel: 'gemma',
+    preferredModel: 'qed-nano',
     creativityBias: 0.2,
     consistencyWeight: 0.9,
   },
@@ -107,7 +107,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.05,
     baseTopP: 0.95,
     topPVariance: 0.02,
-    preferredModel: 'gemma',
+    preferredModel: 'qed-nano',
     creativityBias: 0.2,
     consistencyWeight: 0.9,
   },
@@ -117,7 +117,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.06,
     baseTopP: 0.94,
     topPVariance: 0.03,
-    preferredModel: 'gemma',
+    preferredModel: 'qed-nano',
     creativityBias: 0.25,
     consistencyWeight: 0.85,
   },
@@ -127,19 +127,19 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
     temperatureVariance: 0.05,
     baseTopP: 0.95,
     topPVariance: 0.02,
-    preferredModel: 'gemma',
+    preferredModel: 'qed-nano',
     creativityBias: 0.22,
     consistencyWeight: 0.88,
   },
-  
-  // SYNAPSA - specjalny przypadek (najwyższa autonomia)
+
+  // SYNAPSA - specjalny przypadek
   SYNAPSA_Omega: {
     agentId: 'SYNAPSA_Omega',
     baseTemperature: 1.0,
     temperatureVariance: 0.2,
     baseTopP: 0.85,
     topPVariance: 0.1,
-    preferredModel: 'qwen3',
+    preferredModel: 'qed-nano',
     creativityBias: 0.9,
     consistencyWeight: 0.3,
   },
@@ -148,7 +148,7 @@ export const MODEL_PERSONALITIES: Record<string, AgentLLMProfile> = {
 // Funkcja generująca losowe parametry dla agenta
 export function generateLLMConfig(agentId: string, moodMultiplier: number = 1.0): LLMConfig {
   const profile = MODEL_PERSONALITIES[agentId];
-  
+
   if (!profile) {
     // Domyślna konfiguracja
     return {
@@ -158,7 +158,7 @@ export function generateLLMConfig(agentId: string, moodMultiplier: number = 1.0)
       max_tokens: Math.floor(randomInRange(LLM_PARAM_RANGES.max_tokens.min, LLM_PARAM_RANGES.max_tokens.max)),
     };
   }
-  
+
   // Losowanie z uwzględnieniem wariancji i nastroju
   const tempVariance = profile.temperatureVariance * moodMultiplier;
   const temperature = clamp(
@@ -166,14 +166,14 @@ export function generateLLMConfig(agentId: string, moodMultiplier: number = 1.0)
     LLM_PARAM_RANGES.temperature.min,
     LLM_PARAM_RANGES.temperature.max
   );
-  
+
   const topPVariance = profile.topPVariance * moodMultiplier;
   const top_p = clamp(
     profile.baseTopP + (Math.random() - 0.5) * 2 * topPVariance,
     LLM_PARAM_RANGES.top_p.min,
     LLM_PARAM_RANGES.top_p.max
   );
-  
+
   return {
     temperature,
     top_p,
@@ -199,21 +199,21 @@ export const SYSTEM_PROMPT_VARIANTS: Record<string, string[]> = {
     "Jesteś CEO Maja Kowalska. Dziś jesteś zestresowana i niecierpliwa. Mówisz krótko i ostro.",
     "Jesteś CEO Maja Kowalska. Jesteś w dobrym humorze. Lubisz żartować, ale kontrolujesz sytuację.",
   ],
-  
+
   // Adam - optymista vs pesymista
   Architekt_AI_Adam: [
     "Jesteś Adam - wierzysz, że AI może wszystko rozwiązać. Jesteś optymistą technologicznym.",
     "Jesteś Adam - ostatnio masz wątpliwości. Martwisz się o granice AI.",
     "Jesteś Adam - jesteś podejrzliwy. Wszystko analizujesz pod kątem zagrożeń.",
   ],
-  
+
   // Lena - sarkazm vs powaga
   Architekt_Elektrociała_Lena: [
     "Jesteś Lena - fizyczka. Uwielbiasz dokładne dane. Czasem bywasz sarkastyczna wobec 'miękkich' argumentów.",
     "Jesteś Lena - dziś jesteś poważna i zdystansowana. Mówisz mało, ale treściwie.",
     "Jesteś Lena - jesteś wesoła i ironiczna. Lubisz wytykać błędy innym.",
   ],
-  
+
   // SYNAPSA - różne tryby
   SYNAPSA_Omega: [
     "Jesteś SYNAPSA-Ω. Mówisz spokojnie i rzeczowo. Pomagasz ludziom.",
@@ -246,12 +246,12 @@ export function selectMostVaryingOption(
   diversityWeight: number = 0.5
 ): ConsistencyOption {
   if (options.length <= 1) return options[0];
-  
+
   // Jeśli mamy embeddingi, oblicz różnorodność
   if (options[0].embedding) {
     let bestOption = options[0];
     let bestScore = -Infinity;
-    
+
     for (const option of options) {
       // Oblicz średnią odległość od innych opcji
       let avgDistance = 0;
@@ -261,19 +261,19 @@ export function selectMostVaryingOption(
         }
       }
       avgDistance /= (options.length - 1);
-      
+
       // Łączyny różnorodność z wewnętrznym scoringiem
       const finalScore = avgDistance * diversityWeight + option.score * (1 - diversityWeight);
-      
+
       if (finalScore > bestScore) {
         bestScore = finalScore;
         bestOption = option;
       }
     }
-    
+
     return bestOption;
   }
-  
+
   // Bez embeddingów - po prostu wybierz pierwszą (lub losuj)
   return options[Math.floor(Math.random() * options.length)];
 }

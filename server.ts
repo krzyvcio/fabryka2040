@@ -15,23 +15,25 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
 const HOST = "0.0.0.0";
-const LM_STUDIO_URL = "http://172.23.176.1:1234/v1";
+
+const LM_STUDIO_URL = "http://localhost:1234/v1";
 const LOCK_FILE = path.join(__dirname, ".server.lock");
+
 
 async function killProcessOnPort(port: number): Promise<boolean> {
   try {
     if (process.platform === "win32") {
-      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+      const { stdout } = await execAsync(`netstat -ano | findstr LISTENING | findstr :${port}`);
       const lines = stdout.trim().split("\n");
       for (const line of lines) {
         const parts = line.trim().split(/\s+/);
         if (parts.length >= 5) {
           const pid = parts[parts.length - 1];
-          if (pid && !isNaN(parseInt(pid))) {
+          if (pid && !isNaN(parseInt(pid)) && pid !== "0" && pid !== process.pid.toString()) {
             console.log(`   🔪 Zabijam proces PID ${pid} na porcie ${port}...`);
             try {
               await execAsync(`taskkill /PID ${pid} /F`);
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -43,7 +45,7 @@ async function killProcessOnPort(port: number): Promise<boolean> {
           console.log(`   🔪 Zabijam proces PID ${pid} na porcie ${port}...`);
           try {
             await execAsync(`kill -9 ${pid}`);
-          } catch {}
+          } catch { }
         }
       }
     }
@@ -88,12 +90,12 @@ function releaseLock(): void {
     if (fs.existsSync(LOCK_FILE)) {
       fs.unlinkSync(LOCK_FILE);
     }
-  } catch {}
+  } catch { }
 }
 
 async function checkLMStudio(): Promise<boolean> {
   try {
-    const res = await fetch(`${LM_STUDIO_URL}/models`, { 
+    const res = await fetch(`${LM_STUDIO_URL}/models`, {
       method: "GET",
       signal: AbortSignal.timeout(5000)
     });
@@ -152,15 +154,15 @@ async function startServer() {
     console.log("❌ Nie można uruchomić - serwer już działa!");
     process.exit(1);
   }
-  
+
   console.log("\n🔍 Sprawdzanie systemu...\n");
-  
+
   const lmOk = await checkLMStudio();
   if (!lmOk) {
     console.log("\n⚠️  LM Studio nie jest dostępny!");
     console.log("   Uruchom LM Studio i załaduj model przed startem serwera.\n");
   }
-  
+
   console.log("🌐 Uruchamianie serwera...");
   try {
     await initializeApiResources();

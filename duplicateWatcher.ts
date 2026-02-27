@@ -13,7 +13,7 @@ import { getCognitiveState } from "./cognitiveEngine.js";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const REASONER_MODEL = "qed-nano";
 
 const openai = createOpenAI({

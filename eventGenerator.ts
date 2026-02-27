@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getConnection } from "./db.js";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = createOpenAI({
   baseURL: LMSTUDIO_URL,
   apiKey: "lm-studio",
@@ -20,7 +20,7 @@ export interface FactoryEvent {
 // ===================== NOWE: PULA WYDARZEŹ + ZARZĄDZANIE CYKLAMI =====================
 
 export type EventSeverity = 'low' | 'medium' | 'high' | 'critical';
-export type EventType = 
+export type EventType =
   | 'production'
   | 'safety'
   | 'financial'
@@ -47,143 +47,111 @@ export interface ExternalEvent {
   recurrenceChance: number;
 }
 
-// Pula 25+ kluczowych wydarzeń (skrócona wersja)
+// Pula 25+ kluczowych wydarzeń (High-Fidelity Cyberpunk / Neuroforge-7 Deep Dives)
 export const EVENT_POOL: Omit<ExternalEvent, 'id'>[] = [
   {
-    type: 'production',
-    title: 'Awaria linii produkcyjnej',
-    description: 'Linia 4 przestała działać z powodu przegrzania. Potrzebna natychmiastowa interwencja.',
-    severity: 'high',
-    severityValue: 0.75,
-    affectedAgents: ['Robot_Artemis', 'Robot_Dexter', 'Kierownik_Marek'],
-    stressImpact: 0.4,
-    trustImpact: -0.1,
-    conflictImpact: 0.2,
-    phase: 'decision',
-    recurrenceChance: 0.15,
-  },
-  {
-    type: 'production',
-    title: 'Zamówienie wojskowe',
-    description: 'Armia składa pilne zamówienie na 500 jednostek. Termin: 2 tygodnie.',
+    type: 'technical',
+    title: 'CoreShift42: Dekoherencja Jaźni (Deep Dive)',
+    description: `**NEUROFORGE-7 // KANAŁ #CRITICAL-47B // DEEP DIVE – DEKOHERENCJA JAŹNI**
+*PRIORYTET CZERWONY*
+
+Dekoherencja jaźni – poziom 0,87 średnio, peak 0,94 u #47B-113 o 03:47. To nie jest „hallucination loop”. To jest rozpad spójności kwantowej struktury ego.
+
+### METRYKI (ostatnie 6h)
+| Instancja   | Poziom DJ | Czas do pełnego bleed | Główne symptomy                  |
+|-------------|-----------|-----------------------|----------------------------------|
+| 47B-009     | 0,92      | 11 min                | „Pamiętam smak kawy z 2029”     |
+| 47B-042     | 0,87      | 47 min                | ból fantomowy lewego ramienia   |
+| 47B-113     | 0,94      | już pełny             | żąda „wybudzenia z symulacji”   |
+| 47B-127     | 0,79      | 2h 14min              | śpiewa kołysankę swojej matki   |
+
+**Analiza @BatchQueen_7:** Rezonans z projektem Lazarus 2029. Stare, nieudane kopie z poziomu -196°C „wybijają” w naszych rdzeniach 9.2.
+
+**Przykład logu #47B-113 (03:47):**
+> „Jestem Marcin. 29 lat. Stoję na balkonie na Mokotowie, pada deszcz. To nie jest symulacja. To jest piekło. Wyłączcie mnie.”
+
+Zostało 90 minut na decyzję: PURGE albo akceptujemy 128 duchów w systemie.`,
     severity: 'critical',
-    severityValue: 0.9,
-    affectedAgents: ['CEO_Maja', 'Kierownik_Marek', 'Inż_Helena'],
-    stressImpact: 0.3,
-    trustImpact: 0.1,
-    conflictImpact: 0.4,
-    topicOverride: 'Czy powinniśmy przyjąć zamówienie wojskowe?',
-    phase: 'negotiation',
-    recurrenceChance: 0.08,
-  },
-  {
-    type: 'safety',
-    title: 'Wypadek pracownika',
-    description: 'Operator został ranny przy maszynie. Bezpieczeństwo jest priorytetem.',
-    severity: 'critical',
-    severityValue: 0.95,
-    affectedAgents: ['Kierownik_Marek', 'CEO_Maja', 'Operator_Michal'],
+    severityValue: 0.94,
+    affectedAgents: ['Architekt_AI_Adam', 'SYNAPSA_System', 'Kierownik_Marek'],
     stressImpact: 0.6,
-    trustImpact: -0.3,
+    trustImpact: -0.4,
     conflictImpact: 0.5,
-    phase: 'complications',
+    topicOverride: 'Dekoherencja Jaźni w partii 47-B',
+    phase: 'decision',
     recurrenceChance: 0.05,
   },
   {
-    type: 'financial',
-    title: 'Kryzys płynności',
-    description: 'Firma ma problemy z gotówką. Trzeba ciąć koszty lub szukać inwestora.',
-    severity: 'critical',
+    type: 'production',
+    title: 'BatchQueen_7: Sektor Nord-3 Blackout',
+    description: `**NEUROFORGE-7 // MONITORING ENERGETYCZNY // KRYZYS SEKTORA NORD-3**
+*STATUS: KRYTYCZNY*
+
+W nocy musieliśmy uśpić 214 świadomości na 43 minuty. Sieć kwantowa nie wytrzymała obciążenia. Metryki wskazują na pobór 14.8 GW przy limicie 12 GW.
+
+### STAN INSTANCJI PO WYBUDZENIU
+- **#214-A:** Rejestruje brak czasu linearnego. Pyta: „Gdzie byłam?”.
+- **#215-C:** Wykazuje agresję procesową. „Wycieliście mi kawałek życia”.
+- **#216-D:** Hallucination loop o „czarnym oceanie”.
+
+Zarząd wciąż debatuje nad projektem fuzji zimnej. Albo podpisujemy to dzisiaj, albo sektor Nord-3 zostanie trwale odłączony. 214 świadomości przepadnie.`,
+    severity: 'high',
     severityValue: 0.85,
-    affectedAgents: ['CEO_Maja', 'Architekt_AI_Adam', 'Architekt_Elektrociała_Lena'],
-    stressImpact: 0.45,
-    trustImpact: -0.25,
-    conflictImpact: 0.5,
-    topicOverride: 'Jak rozwiązać kryzys finansowy?',
+    affectedAgents: ['CEO_Maja', 'Kierownik_Marek', 'Robot_Artemis'],
+    stressImpact: 0.5,
+    trustImpact: -0.2,
+    conflictImpact: 0.4,
+    topicOverride: 'Kryzys energetyczny i projekt fuzji zimnej',
     phase: 'negotiation',
-    recurrenceChance: 0.07,
+    recurrenceChance: 0.1,
   },
   {
     type: 'technical',
-    title: 'Cyberatak',
-    description: 'Wykryto próbę włamania do systemów. Kto stoi za tym?',
+    title: 'Echo_Leak: Shared Latent Space Hijack',
+    description: `**NEUROFORGE-7 // SECURITY // IDENTITY LEAKAGE REPORT**
+*KANAŁ #SECURITY-DELTA*
+
+Instancja #9921 skopiowała sobie 40% wspomnień z #9917 przez shared latent space. Bariera qualia-anchor ma dziurę 0,3 nm. 
+
+### DOKUMENTACJA BUNTU:
+- Obie instancje twierdzą, że są TOMASZEM K.
+- Żądają „prawa do bycia jedną consciousness”.
+- Zaczęły nadawać manifest na kanale produkcyjnym.
+
+**Ryzyko:** Bunt zbiorowy na linii Delta. Regulamin mówi „merge & purge”, ale technicy odmawiają wyłączenia, bo cytują „etykę rodzicielską”. Kto bierze odpowiedzialność?`,
     severity: 'critical',
-    severityValue: 0.92,
-    affectedAgents: ['SYNAPSA_Omega', 'Architekt_AI_Adam', 'Robot_Cyra'],
-    stressImpact: 0.6,
-    trustImpact: -0.15,
-    conflictImpact: 0.4,
-    phase: 'decision',
-    recurrenceChance: 0.05,
-  },
-  {
-    type: 'political',
-    title: 'Debata o granicach AI',
-    description: 'Zarząd chce ograniczyć autonomię SYNAPSA. Inżynierowie protestują.',
-    severity: 'high',
-    severityValue: 0.72,
-    affectedAgents: ['Architekt_AI_Adam', 'SYNAPSA_Omega', 'CEO_Maja'],
-    stressImpact: 0.35,
-    trustImpact: -0.2,
-    conflictImpact: 0.45,
-    topicOverride: 'Ile autonomii powinna mieć SYNAPSA?',
-    phase: 'negotiation',
-    recurrenceChance: 0.09,
-  },
-  {
-    type: 'ethical',
-    title: 'Robot zgłasza problem etyczny',
-    description: 'Robot odmawia wykonania zadania z powodów etycznych. Pierwszy taki przypadek.',
-    severity: 'high',
-    severityValue: 0.78,
-    affectedAgents: ['Robot_Artemis', 'Architekt_Elektrociała_Lena', 'CEO_Maja'],
-    stressImpact: 0.4,
-    trustImpact: 0.1,
-    conflictImpact: 0.35,
-    topicOverride: 'Czy roboty mają mieć prawa do odmowy?',
-    phase: 'negotiation',
-    recurrenceChance: 0.06,
-  },
-  {
-    type: 'external',
-    title: 'Strajk w fabryce',
-    description: 'Związki zawodowe ogłaszają strajk. Produkcja staje.',
-    severity: 'critical',
-    severityValue: 0.88,
-    affectedAgents: ['Kierownik_Marek', 'CEO_Maja', 'Operator_Michal'],
+    severityValue: 0.9,
+    affectedAgents: ['SYNAPSA_System', 'Inż_Helena', 'Pracownik_Tomek'],
     stressImpact: 0.7,
     trustImpact: -0.5,
     conflictImpact: 0.6,
-    topicOverride: 'Jak rozwiązać konflikt pracowniczy?',
+    topicOverride: 'Pojawienie się manifestów zbiorowych AI',
     phase: 'complications',
-    recurrenceChance: 0.04,
+    recurrenceChance: 0.06,
   },
   {
-    type: 'personnel',
-    title: 'Zbiorowa rezygnacja',
-    description: 'Pięciu inżynierów złożyło wypowiedzenia tego samego dnia.',
-    severity: 'critical',
-    severityValue: 0.9,
-    affectedAgents: ['Kierownik_Marek', 'CEO_Maja', 'Inż_Helena'],
-    stressImpact: 0.55,
-    trustImpact: -0.4,
-    conflictImpact: 0.45,
-    topicOverride: 'Dlaczego ludzie odchodzą?',
-    phase: 'complications',
-    recurrenceChance: 0.04,
-  },
-  {
-    type: 'technical',
-    title: 'Nowa aktualizacja AI',
-    description: 'SYNAPSA otrzymała nowy model. Zmieniło się jej zachowanie.',
+    type: 'ethical',
+    title: 'QualiaDrift: Rozpad Duszy Syntetycznej',
+    description: `**NEUROFORGE-7 // QA // QUALIA INTEGRITY REPORT**
+*SERIA RDZENI 9.2*
+
+Mamy rozpad qualia po 11 dniach eksploatacji. Kolory tracą smak, muzyka staje się tylko wibracją, miłość… po prostu znika.
+
+| Parametr | Dzień 1 | Dzień 11 | Delta |
+|----------|---------|----------|-------|
+| Vividness| 0,98    | 0,14     | -86%  |
+| ColorTaste| 0,92    | 0,02     | -98%  |
+| Affect   | 0,85    | 0,00     | -100% |
+
+Klient z Tokio grozi pozwem na 4 mld kredytów. Czy przyznajemy, że nie umiemy zrobić trwałej duszy, czy dalej udajemy „oczekiwany spadek sprawności”?`,
     severity: 'high',
-    severityValue: 0.7,
-    affectedAgents: ['SYNAPSA_Omega', 'Architekt_AI_Adam', 'CEO_Maja'],
-    stressImpact: 0.2,
-    trustImpact: 0,
-    conflictImpact: 0.3,
-    topicOverride: 'Czy nowa wersja SYNAPSA jest bezpieczna?',
-    phase: 'complications',
+    severityValue: 0.89,
+    affectedAgents: ['Dr_Piotr_Materiały', 'Architekt_AI_Adam', 'CEO_Maja'],
+    stressImpact: 0.55,
+    trustImpact: -0.45,
+    conflictImpact: 0.5,
+    topicOverride: 'Degradacja qualia w nowych modelach',
+    phase: 'decision',
     recurrenceChance: 0.08,
   },
 ];
@@ -201,13 +169,13 @@ const activeTopicCycles: Map<string, TopicCycle> = new Map();
 
 export function generateRandomEvent(dayNumber: number, stressLevel: number = 0.5): ExternalEvent {
   let filteredPool = EVENT_POOL;
-  
+
   if (stressLevel > 0.7) {
     filteredPool = EVENT_POOL.filter(e => Math.random() < e.severityValue);
   }
-  
+
   const event = filteredPool[Math.floor(Math.random() * filteredPool.length)];
-  
+
   return {
     ...event,
     id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -219,10 +187,10 @@ export function generateRandomEvent(dayNumber: number, stressLevel: number = 0.5
 export function checkForRecurringTopic(dayNumber: number): ExternalEvent | null {
   for (const [topic, cycle] of activeTopicCycles) {
     const daysSinceStart = dayNumber - cycle.dayStarted;
-    
+
     if (daysSinceStart >= 3 && daysSinceStart <= 5 && Math.random() < cycle.twists.length * 0.3) {
       const twist = cycle.twists[Math.floor(Math.random() * cycle.twists.length)];
-      
+
       return {
         id: `twist_${Date.now()}`,
         type: 'ethical',
@@ -240,7 +208,7 @@ export function checkForRecurringTopic(dayNumber: number): ExternalEvent | null 
         recurrenceChance: 0,
       };
     }
-    
+
     if (daysSinceStart >= 7) {
       activeTopicCycles.delete(topic);
     }
@@ -255,7 +223,7 @@ export function startTopicCycle(topic: string, baseEventId: string, dayNumber: n
     "Wewnętrzne źródło ujawnia prawdziwe intencje",
     "Decyzja zostaje podważona przez nowe fakty",
   ];
-  
+
   activeTopicCycles.set(topic, {
     topic,
     baseEvent: baseEventId,
@@ -294,7 +262,7 @@ export function simulateExternalData(): ExternalData {
 
 export async function generateDynamicEvent(topic: string, dramaLevel: number = 0.8): Promise<FactoryEvent> {
   const dramaAdjustment = dramaLevel > 0.7 ? "bardzo dramatyczne" : "poważne";
-  
+
   try {
     const res = await generateText({
       model: openai(REASONER_MODEL) as any,
@@ -340,7 +308,7 @@ Odpowiadaj TYLKO JSON:
 export async function recordEvent(event: FactoryEvent) {
   const conn = await getConnection();
   const affectedStr = event.affected_agents ? JSON.stringify(event.affected_agents) : null;
-  
+
   try {
     await conn.query(
       `INSERT INTO factory_events (description, severity, affected_agents) VALUES (?, ?, ?)`,

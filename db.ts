@@ -33,7 +33,7 @@ export async function initializeDatabase(): Promise<mariadb.Pool> {
   });
 
   await initMigrations();
-  
+
   return pool;
 }
 
@@ -161,8 +161,18 @@ export async function getConversationContext(conversationId: string): Promise<an
 export async function registerChatAgent(id: string, name: string, persona: string, style: string, role: string, interests: string[], priorities: string[]): Promise<void> {
   const conn = await getConnection();
   try {
-    await conn.query(`INSERT IGNORE INTO chat_agents (id, name, persona, style, role, interests, priorities) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, name, persona, style, role, JSON.stringify(interests), JSON.stringify(priorities)]);
+    // Używamy ON DUPLICATE KEY UPDATE zamiast REPLACE INTO, aby uniknąć błędów kluczy obcych (REPLACE robi DELETE+INSERT)
+    await conn.query(`
+      INSERT INTO chat_agents (id, name, persona, style, role, interests, priorities) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        name = VALUES(name),
+        persona = VALUES(persona),
+        style = VALUES(style),
+        role = VALUES(role),
+        interests = VALUES(interests),
+        priorities = VALUES(priorities)
+    `, [id, name, persona, style, role, JSON.stringify(interests), JSON.stringify(priorities)]);
   } finally {
     conn.release();
   }

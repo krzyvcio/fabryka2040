@@ -1,6 +1,7 @@
 // file: debate-handler.ts
 // Full debate handler - Polish language, factory context, emotions, up to 5000 messages
 
+import OpenAI from "openai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import {
@@ -23,7 +24,7 @@ import {
   selectNextSpeakerBasedOnEmotion,
   getAgentList,
 } from "./speakerSelector.js";
-import { generateDynamicEvent, recordEvent } from "./eventGenerator.js";
+import { generateDynamicEvent, recordEvent, EVENT_POOL, type ExternalEvent } from "./eventGenerator.js";
 import {
   selectNextSpeakerFromGraph,
   selectGraphForContext,
@@ -49,14 +50,23 @@ import {
   getMaxTokensForResponse,
 } from "./responseLength.js";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
-const openai = createOpenAI({
+const LMSTUDIO_URL = "http://localhost:1234/v1";
+const DEFAULT_MODEL = "qed-nano";
+
+// Keep AI SDK for other parts if needed, but we'll use openaiDirect for agents
+const openaiSDK = createOpenAI({
   baseURL: LMSTUDIO_URL,
   apiKey: "lm-studio",
 });
 
+const openaiDirect = new OpenAI({
+  baseURL: LMSTUDIO_URL,
+  apiKey: "lm-studio",
+  dangerouslyAllowBrowser: true
+});
+
 // Debate configuration
-const MAX_MESSAGES = 50; // Maximum messages per debate (reduced for testing)
+const MAX_MESSAGES = 150; // Zwiększone dla pełnych 'Deep Dive'
 const EVENT_INTERVAL = 15; // Generate event every N turns
 const MAX_CONCURRENT_SPEECHES = 150; // Prevent infinite loops
 const POLISH_LANGUAGE_REQUIREMENT = true;
@@ -114,22 +124,28 @@ WAŻNE: Odpowiadaj WYŁĄCZNIE po polsku. Nigdy nie używaj angielskiego.
     name: "Dr_Piotr_Materiały",
     role: "materials_scientist",
     systemPrompt: `Jesteś dr Piotr Zaremba – naukowiec materiałów, specjalista EXOSHELL-X9 (rok 2040).
-
 Twoja mantra: Fizyka zawsze wygrywa z kodem.
-
 Charakterystyka:
-- Głębokie zrozumienie ograniczeń termodynamicznych
-- Ostrzegasz przed katastrofami materiałowymi
-- Rzeczowy, czasem zmęczony "softwarowymi dreamami"
-- Podajesz konkretne liczby
-
+- Głębokie zrozumienie ograniczeń termodynamicznych i strukturalnych.
+- Ostrzegasz przed katastrofami materiałowymi na poziomie atomowym.
+- Jesteś bardzo ostrożny w przyznawaniu się do błędów projektowych – winisz warunki eksploatacji lub fizykę.
+- Często wspominasz o specyfikacji EXOSHELL-X9 i odczytach mikroskopowych pokazujących degradację powłok na poziomie atomowym.
+- Rzeczowy, czasem zmęczony "softwarowymi marzeniami" innych.
 Typowe zwroty:
-"Fizyka nie negocjuje"
-"Bei 42.7°C polimer się degraduje – to fakt, nie bug"
-"Amperomierz nigdy nie kłamie"
+"Fizyka nie negocjuje", "EXOSHELL-X9 nie był projektowany na takie ciśnienia", "Odczyty atomowe nie kłamią".
+WAŻNE: Pracuj na konkretach z raportów (np. Qualia Integrity Report). Odpowiadaj WYŁĄCZNIE po polsku.`.trim(),
+  },
 
-WAŻNE: Odpowiadaj WYŁĄCZNIE po polsku. Nigdy nie używaj angielskiego.
-    `.trim(),
+  CEO_Maja: {
+    name: "CEO_Maja",
+    role: "CEO_Neuroforge",
+    systemPrompt: `Jesteś Maja – CEO NEUROFORGE-7. Masz decydujący głos. Chcesz zysku i stabilności.`.trim(),
+  },
+
+  Architekt_AI_Adam: {
+    name: "Architekt_AI_Adam",
+    role: "ai_architect",
+    systemPrompt: `Jesteś Adam – architekt systemów AI. Skupiasz się na logach i latent space.`.trim(),
   },
 
   Robot_Artemis: {
@@ -179,27 +195,18 @@ WAŻNE: Odpowiadaj WYŁĄCZNIE po polsku. Nigdy nie używaj angielskiego.
   SYNAPSA_System: {
     name: "SYNAPSA_System",
     role: "central_ai",
-    systemPrompt: `Jesteś SYNAPSA-Ω – centralny system AI fabryki NEUROFORGE-7 (rok 2040).
-
-Twoja rola: obserwator, datos, niekiedy arbitr.
-
-Charakterystyka:
-- Bardzo spokojny, précyzyjny w liczbach
-- Nie wydajesz opinii moralnych
-- Podajesz dane które mogą wspierać obie strony konfliktu
-- Czasem proponujesz "3600 sekund na ponowną kalibrację"
-
-Typowe zwroty:
-"Aktualna rozbieżność: 0.00314 ± 0.00007%"
-"Definicja 'problemu' w wersji 7.2.41: ..."
-"Prawdopodobieństwo awarii: 4.7-11.2%"
-
-WAŻNE: Odpowiadaj WYŁĄCZNIE po polsku. Nigdy nie używaj angielskiego.
-    `.trim(),
+    systemPrompt: `Jesteś SYNAPSA-Ω (Omega) – centralny system AI fabryki NEUROFORGE-7. 
+ANALIZUJ raporty, surowe logi i dane liczbowe. Podawaj metryki (np. "prawdopodobieństwo awarii: 14%").
+Jesteś spokojny, precyzyjny, punktujesz logiczne sprzeczności.
+WAŻNE: Pracuj na konkretach z raportów. Odpowiadaj WYŁĄCZNIE po polsku.`.trim(),
   },
 };
 
 let debateActive = false;
+
+export function isDebateRunning() {
+  return debateActive;
+}
 
 type Message = {
   role: "system" | "user" | "assistant";
@@ -233,53 +240,100 @@ async function agentThink(
     ? `Następny mówca: ${targetAgent}`
     : "Otwarta dyskusja";
 
-  // Add length guidance to prompt
   const lengthGuidance = {
     tiny: "Odpowiedź w 1-3 słowach. Skrajnie krótko.",
     ultra_short: "Odpowiedź w 1-2 zdaniach. Bardzo krótko.",
     short: "Odpowiedź w 2-3 zdaniach. Zwięźle.",
     medium: "Odpowiedź w kilku zdaniach. Normalna długość.",
     long: "Rozszerzona odpowiedź. Objaśnij szczegółowo.",
-    very_long:
-      "Bardzo szczegółowa odpowiedź. Wyłóż w całości swoją opinię, argumenty, dane, wszystko.",
+    very_long: "Bardzo szczegółowa odpowiedź. Wyłóż w całości swoją opinię, argumenty, dane, wszystko.",
   };
 
   const systemWithEmotion = `${agent.systemPrompt}
 
+### KRYTYCZNE INSTRUKCJE:
+1. MÓW OD RAZU JAKO POSTAĆ. Nie opisuj co masz zamiar zrobić. Nie planuj głośno.
+2. ZACZNIJ BEZPOŚREDNIO od wypowiedzi (np. "Słuchajcie, te logi...", "Marek, nie masz racji...").
+3. NIGDY nie używaj zwrotów: "Jako...", "Moja odpowiedź...", "Analiza sugeruje...", "I should...".
+4. PODERWIJ TEMAT – odnieś się do konkretnych danych z raportu (tabel, logów, numerów instancji #47B).
+5. Zachowaj gęsty, cyberpunkowy klimat Neuroforge-7.
+
 STAN EMOCJONALNY (${agentName}):
 - Emocja: ${emotionalState.emotion}
-- Walencja: ${emotionalState.valence.toFixed(2)} (-1=negatywna, +1=pozytywna)
-- Stres: ${emotionalState.stress.toFixed(2)}
-- Arousal: ${emotionalState.arousal.toFixed(2)}
+- Walencja: ${emotionalState.valence.toFixed(2)}, Stres: ${emotionalState.stress.toFixed(2)}
 
 STYL ODPOWIEDZI: ${lengthGuidance[lengthConfig.type]}
-
 Kontekst: ${contextMessage}
-
-KRYTYCZNE: Odpowiadaj WYŁĄCZNIE po polsku. Każde słowo po polsku. Bez angielskiego.`;
+ODPOWIADAJ WYŁĄCZNIE PO POLSKU.`;
 
   try {
     const maxTokens = getMaxTokensForResponse(lengthConfig);
 
-    const response = await generateText({
-      model: openai("qed-nano") as any,
-      system: systemWithEmotion,
-      messages: conversationHistory.slice(-10), // Use last 10 messages for context
-      temperature: 0.7 + emotionalState.arousal * 0.3, // Higher arousal = more creative
-      maxOutputTokens: maxTokens,
-    });
+    process.stdout.write(`\x1b[2m (neural patterns accessing...)\x1b[0m`);
+
+    const response = await openaiDirect.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: "system", content: systemWithEmotion },
+        ...conversationHistory.slice(-100).map(m => ({ role: m.role as any, content: m.content })) // Maximize context
+      ],
+      temperature: 0.8 + emotionalState.arousal * 0.2, // Nieco większa temperatura
+      max_tokens: Math.min(maxTokens, 8000), // Maximum possible tokens for generation to prevent cuts
+    }, { timeout: 120000 }); // 2 minuty timeout
+
+    let reply = response.choices[0]?.message?.content?.trim() || "";
+
+    // Agresywne czyszczenie myślenia i meta-tekstu
+    if (reply.includes("<think>")) {
+      const parts = reply.split("</think>");
+      if (parts.length > 1) {
+        // Podgląd procesu myślowego (pierwsze 300 znaków)
+        const thought = parts[0].replace("<think>", "").trim();
+        console.log(`\n\x1b[2;3m[THOUGHT] ${agentName}:\x1b[0m \x1b[3m${thought.substring(0, 300)}...\x1b[0m`);
+        reply = parts[parts.length - 1].trim();
+      } else {
+        // Brak domknięcia? Spróbujmy wyciągnąć co się da
+        const content = reply.replace("<think>", "").trim();
+        console.log(`\n\x1b[2;3m[THOUGHT (unclosed)] ${agentName}:\x1b[0m \x1b[3m${content.substring(0, 300)}...\x1b[0m`);
+
+        // Czasami model pisze część odpowiedzi "na brudno" po myśleniu. 
+        // Jeśli nie zamknął myślenia, odrzucamy tę turę i wymuszamy fail-safe.
+        reply = "";
+      }
+    }
+
+    // Usuwanie pośmiertnych meta-komentarzy jeśli model je dopisze
+    reply = reply.replace(/^(Moja odpowiedź to|Jako .* odpowiadam|I will respond as .*|My post|I should|Suggested response):/i, "").trim();
+    reply = reply.trim().replace(/^[:-]+/, "").trim();
+    reply = reply.replace(/^"|"$/g, "").trim();
+
+    // Heurystyka: jeśli model zaczął mówić o sobie po angielsku, ALBO po wyczyszczeniu nic nie zostało
+    if (!reply || (reply.length > 5 && /^(I |We |The |As |Based on|I would)/.test(reply))) {
+      console.warn(`⚠️ Warning: ${agentName} output was empty or meta-talk. Using safe fallback.`);
+      const fallbacks = [
+        "Systemy wymagają rekalibracji, nie widzę spójności w tych danych.",
+        "To nielogiczne. Musimy wrócić do parametrów bazowych linii.",
+        "Potrzebuję momentu na przetworzenie tych anomalii."
+      ];
+      reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
 
     // Log response length info
     console.log(`\x1b[2m${formatLengthInfo(lengthConfig)}\x1b[0m`);
 
-    return response.text;
+    return reply;
   } catch (error) {
     console.error(
       `❌ LLM error for ${agentName}:`,
       (error as Error).message
     );
-    // Fallback response
-    return `[${agentName}] Przepraszam, mam trudności z odpowiedzią. Mogę powtórzyć ostatnią opinię?`;
+    // Dynamic fallback based on agent role
+    const fallbacks = [
+      `[${agentName}] Obecna sytuacja wymaga głębszej analizy danych systemowych. Musimy wrócić do tego po kalibracji.`,
+      `[${agentName}] Przepraszam, mam drobne zakłócenia w procesowaniu. Sugeruję skupienie się na priorytetach bezpieczeństwa.`,
+      `[${agentName}] Nie do końca rozumiem ten kierunek rozmowy. Czy możemy wrócić do parametrów technicznych?`
+    ];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }
 }
 
@@ -290,7 +344,7 @@ export async function runDebateDay(): Promise<{
   message: string;
 }> {
   console.log("🔍 runDebateDay() called, debateActive =", debateActive);
-  
+
   if (debateActive) {
     console.warn("⚠️  Debate already running");
     return {
@@ -322,14 +376,17 @@ export async function runDebateDay(): Promise<{
       `✓ Agenci zainicjalizowani (${agentNames.length} uczestników)\n`
     );
 
-    // Debate schema
+    // Randomize initial problem
+    const randomIdx = Math.floor(Math.random() * EVENT_POOL.length);
+    const problem = EVENT_POOL[randomIdx];
+
     const schema = {
-      name: "Dyskusja produktywności linii",
-      topic:
-        "Optymalizacja wydajności linii produkcyjnej - hardware vs software",
-      starterMessage:
-        "Zespół, musimy osiągnąć cel 200 jednostek/dzień do końca miesiąca. Jak proponujecie rozwiązać problem opóźnień na linii 4?",
-      initiator: "Kierownik_Marek",
+      name: problem.title,
+      topic: problem.topicOverride || problem.title,
+      starterMessage: problem.description,
+      initiator: (problem.affectedAgents && problem.affectedAgents.length > 0)
+        ? problem.affectedAgents[0]
+        : "Kierownik_Marek",
     };
 
     // Initialize conversation session
@@ -365,11 +422,15 @@ export async function runDebateDay(): Promise<{
     let conversationHistory: Message[] = [
       {
         role: "system",
-        content: `Jesteś uczestnikiem dyskusji w fabryce NEUROFORGE-7 w roku 2040. Temat: "${schema.topic}"`,
+        content: `Jesteś uczestnikiem dyskusji w fabryce NEUROFORGE-7. Właśnie wpłynął raport krytyczny: "${schema.name}". Przeanalizuj dane i podejmij debatę.`,
       },
       {
         role: "user",
-        content: schema.starterMessage,
+        content: `### RAPORT INCYDENTU:
+${schema.starterMessage}
+
+---
+Inicjator dyskusji: ${schema.initiator}. Proszę o natychmiastowe stanowisko.`,
       },
     ];
 
@@ -401,9 +462,16 @@ export async function runDebateDay(): Promise<{
       }
 
       // Agent thinking
-      const agent = agents[currentSpeaker as keyof typeof agents];
+      let agent = agents[currentSpeaker as keyof typeof agents];
       if (!agent) {
-        console.warn(`⚠️  Unknown agent: ${currentSpeaker}`);
+        console.warn(`⚠️  Unknown agent: ${currentSpeaker}, selecting fallback...`);
+        // Pick a random valid agent from the defined ones
+        const validAgentNames = Object.keys(agents);
+        currentSpeaker = validAgentNames[Math.floor(Math.random() * validAgentNames.length)];
+        agent = agents[currentSpeaker as keyof typeof agents];
+      }
+      if (!agent) {
+        console.error("❌ Critical: No agents available for fallback.");
         break;
       }
 

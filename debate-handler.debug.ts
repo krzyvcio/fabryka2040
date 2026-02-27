@@ -43,7 +43,7 @@ import {
   getMaxTokensForResponse,
 } from "./responseLength.js";
 
-const LMSTUDIO_URL = "http://172.23.176.1:1234/v1";
+const LMSTUDIO_URL = "http://localhost:1234/v1";
 const openai = createOpenAI({
   baseURL: LMSTUDIO_URL,
   apiKey: "lm-studio",
